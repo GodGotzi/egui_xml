@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Form layout="strip">
+    <Strip direction="vertical">
+        <Panel pos="exact" arg="100.0">
+            <Strip direction="horizontal">
+                <Panel pos="exact" arg="50.0">
+                    <UiExecute variable="exact_ui"></UiExecute>
+                </Panel>
+                <Panel pos="remainder">
+                    <UiExecute variable="inner_remainder_ui"></UiExecute>
+                </Panel>
+            </Strip>
+        </Panel>
+        <Panel pos="remainder">
+            <UiExecute variable="remainder_ui"></UiExecute>
+        </Panel>
+        <Panel pos="relative" arg="0.5">
+            <UiExecute variable="relative_ui"></UiExecute>
+        </Panel>
+    </Strip>
+</Form>

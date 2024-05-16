@@ -5,10 +5,9 @@ mod test {
 
     #[test]
     fn test() {
-        form!(
-            println!("Hello from test module");
-        );
-
+        //form!(
+        //    println!("Hello from test module");
+        //);
         println!("Hello from test module");
     }
 }
