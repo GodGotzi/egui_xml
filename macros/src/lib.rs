@@ -60,8 +60,8 @@ enum Node {
         children: Vec<Node>,
         args: HashMap<String, String>,
     },
-    Container {
-        inner: InnerLayoutContainer,
+    Div {
+        inner: InnerLayoutDiv,
     },
     UiExecutable {
         variable: String,
@@ -69,7 +69,7 @@ enum Node {
 }
 
 #[derive(Debug, PartialEq)]
-enum InnerLayoutContainer {
+enum InnerLayoutDiv {
     Border {
         children: Vec<Node>,
     },
@@ -112,13 +112,13 @@ impl<'de> serde::Deserialize<'de> for Form {
                 // println!("map: {:?}", map.next_key::<String>());
                 // println!("map: {:?}", map.next_value::<String>());
 
-                while let key = map.next_key::<String>() {
+                while let Ok(Some(key)) = map.next_key::<String>() {
                     println!("key: {:?}", key);
                 }
 
                 return Ok(Form {
-                    root: Node::Container {
-                        inner: InnerLayoutContainer::Default {
+                    root: Node::Div {
+                        inner: InnerLayoutDiv::Default {
                             children: Vec::new(),
                         },
                     },
