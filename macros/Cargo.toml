@@ -7,8 +7,3 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-quick-xml = { version = "0.31.0", features = ["serialize"] }
-serde = { version = ">=1.0.139" }
-serde_derive = { version = "1.0.139" }
-serde-value = "0.7"
-egui = "0.27.2"

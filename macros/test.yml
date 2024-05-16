@@ -1,0 +1,40 @@
+[
+  {
+    "Panel": {
+      "children": [
+        {
+          "UiExecutable": {
+            "variable": "test_ui"
+          }
+        }
+      ],
+      "args": {}
+    }
+  },
+  {
+    "Strip": {
+      "children": [
+        {
+          "Panel": {
+            "children": [
+              {
+                "Panel": {
+                  "children": [
+                    {
+                      "UiExecutable": {
+                        "variable": "test2_ui"
+                      }
+                    }
+                  ],
+                  "args": {}
+                }
+              }
+            ],
+            "args": {}
+          }
+        }
+      ],
+      "args": {}
+    }
+  }
+]
