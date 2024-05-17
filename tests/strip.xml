@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Form>
+    <Strip direction="south">
+        <Panel size="relative" value="0.4">
+            <Strip direction="east">
+                <Panel size="exact" value="250.0">
+                    if ui.button("Hi I am a button!").clicked() {
+                        println!("Button clicked!");
+                    }
+                </Panel>
+                <Panel size="remainder">
+                    ui.label("Hello from XML!");
+                </Panel>
+            </Strip>
+        </Panel>
+        <Panel size="remainder">
+            ui.label("Hello from XML!");
+        </Panel>
+    </Strip>
+</Form>

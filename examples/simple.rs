@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui::Ui;
+use egui::{Color32, Rounding, Ui};
 use egui_form::load_layout;
 
 fn main() -> Result<(), eframe::Error> {
@@ -15,15 +15,9 @@ fn main() -> Result<(), eframe::Error> {
 
 struct MyApp;
 
-fn test_ui(ui: &mut Ui) {
-    ui.label("Test View");
-    ui.label("So nice");
-}
-
-fn test2_ui(ui: &mut Ui) {
-    if ui.button("Click me!").clicked() {
-        ui.label("Huhhu Button Clicked");
-    }
+fn color_background(ui: &mut Ui, color: egui::Color32) {
+    ui.painter()
+        .rect_filled(ui.available_rect_before_wrap(), Rounding::same(5.0), color);
 }
 
 impl eframe::App for MyApp {
@@ -32,23 +26,19 @@ impl eframe::App for MyApp {
             load_layout!(
                 <?xml version="1.0" encoding="utf-8"?>
                 <Form>
-                    test_ui(ui);
-
                     <Strip direction="north">
-                        <Panel size="relative" value="0.75">
-                            // test_ui(ui);
-                            // test2_ui(ui);
-
+                        <Panel size="relative" value="0.4">
                             <Strip direction="west">
                                 <Panel size="exact" value="250.0">
+                                    color_background(ui, Color32::from_rgb(255, 255, 0));
                                 </Panel>
                                 <Panel size="remainder">
-                                    test_ui(ui);
+                                    color_background(ui, Color32::from_rgb(255, 0, 0));
                                 </Panel>
                             </Strip>
                         </Panel>
                         <Panel size="remainder">
-                            test2_ui(ui);
+                            color_background(ui, Color32::from_rgb(0, 0, 255));
                         </Panel>
                     </Strip>
                 </Form>

@@ -1,10 +1,11 @@
 pub use macros::load_layout;
+pub use macros::load_layout_file;
 
 mod test {
-    use macros::load_layout;
-
     #[test]
     fn test() {
+        // use macros::load_layout;
+
         //form!(
         //    println!("Hello from test module");
         //);

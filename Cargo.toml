@@ -14,3 +14,6 @@ egui = "0.22.0"
 
 [[example]]
 name = "simple"
+
+[[example]]
+name = "file"

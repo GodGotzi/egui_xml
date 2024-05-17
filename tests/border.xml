@@ -1,12 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Form layout="border">
-    <Panel pos="north">
-        <Label text="HELLO"/>
-    </Panel>
-    <Panel pos="center">
-        <Label text="BYE"/>
-    </Panel>
-    <Panel pos="south">
-        <UiExecute variable="inner_ui"></UiExecute>
-    </Panel>
+<Form>
+    <Strip direction="north">
+    </Strip>
 </Form>

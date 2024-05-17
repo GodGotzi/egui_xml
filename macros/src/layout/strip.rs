@@ -86,49 +86,54 @@ impl TryFrom<&HashMap<String, String>> for StripChildInfo {
     type Error = String;
 
     fn try_from(attributes: &HashMap<String, String>) -> Result<Self, Self::Error> {
-        if let Some(size) = attributes.get("size") {
-            if let Ok(child_size) = StripChildSize::from_str(size) {
-                return match child_size {
-                    StripChildSize::Remainder => {
-                        return Ok(StripChildInfo {
-                            size: StripChildSize::Remainder,
-                        });
-                    }
-                    _ => {
-                        if let Some(value) = attributes.get("value") {
-                            if let Ok(value) = value.parse::<f32>() {
-                                return match child_size {
-                                    StripChildSize::Exact(_) => Ok(StripChildInfo {
-                                        size: StripChildSize::Exact(value),
-                                    }),
-                                    StripChildSize::Initial(_) => Ok(StripChildInfo {
-                                        size: StripChildSize::Initial(value),
-                                    }),
-                                    StripChildSize::Relative(_) => Ok(StripChildInfo {
-                                        size: StripChildSize::Relative(value),
-                                    }),
-                                    _ => panic!("Why you here!"),
-                                };
-                            }
-                        }
+        let size = match attributes.get("size") {
+            Some(size) => size,
+            None => return Err("Size Attribute doesn't exist!".to_string()),
+        };
 
-                        Err("size attribute doesn't exist!".to_string())
-                    }
-                };
+        let child_size = StripChildSize::from_str(size)
+            .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?;
+
+        return match child_size {
+            StripChildSize::Remainder => {
+                return Ok(StripChildInfo {
+                    size: StripChildSize::Remainder,
+                });
             }
-        }
+            _ => {
+                let value_str = match attributes.get("value") {
+                    Some(value) => value,
+                    None => return Err("Value Attribute doesn't exist!".to_string()),
+                };
 
-        Err("size attribute doesn't exist!".to_string())
+                let value = value_str
+                    .parse::<f32>()
+                    .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?;
+
+                match child_size {
+                    StripChildSize::Exact(_) => Ok(StripChildInfo {
+                        size: StripChildSize::Exact(value),
+                    }),
+                    StripChildSize::Initial(_) => Ok(StripChildInfo {
+                        size: StripChildSize::Initial(value),
+                    }),
+                    StripChildSize::Relative(_) => Ok(StripChildInfo {
+                        size: StripChildSize::Relative(value),
+                    }),
+                    _ => panic!("Why you here!"),
+                }
+            }
+        };
     }
 }
 
 pub fn expand_strip(
     children: &[Rc<RefCell<Node>>],
     attributes: &HashMap<String, String>,
-) -> proc_macro2::TokenStream {
+) -> Result<proc_macro2::TokenStream, String> {
     let info: StripInfo = attributes.try_into().unwrap();
     let mut expanded = quote! {
-        let mut strip_builder = egui_extras::StripBuilder::new(ui);
+        let mut macro_strip_builder = egui_extras::StripBuilder::new(ui);
     };
 
     let iter: Vec<&Rc<RefCell<Node>>> = if info.direction == StripDirection::BottomUp
@@ -141,8 +146,8 @@ pub fn expand_strip(
 
     for child in iter.clone() {
         let child_info: StripChildInfo = match child.borrow().get_attributes() {
-            Some(child_info) => child_info.try_into().unwrap(),
-            None => panic!("No Rust allowed here!"),
+            Some(child_info) => child_info.try_into()?,
+            None => return Err("No Rust allowed here!".to_string()),
         };
 
         let size_expanded = match child_info.size {
@@ -150,7 +155,7 @@ pub fn expand_strip(
                 let size_fn = proc_macro2::Ident::new("remainder", Span::call_site());
 
                 quote! {
-                    strip_builder = strip_builder.size(egui_extras::Size::#size_fn());
+                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn());
                 }
             }
             StripChildSize::Exact(value) => {
@@ -158,7 +163,7 @@ pub fn expand_strip(
                 let value_literal = proc_macro2::Literal::f32_unsuffixed(value);
 
                 quote! {
-                    strip_builder = strip_builder.size(egui_extras::Size::#size_fn(#value_literal));
+                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#value_literal));
                 }
             }
             StripChildSize::Initial(value) => {
@@ -166,7 +171,7 @@ pub fn expand_strip(
                 let value_literal = proc_macro2::Literal::f32_unsuffixed(value);
 
                 quote! {
-                    strip_builder = strip_builder.size(egui_extras::Size::#size_fn(#value_literal));
+                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#value_literal));
                 }
             }
             StripChildSize::Relative(value) => {
@@ -174,7 +179,7 @@ pub fn expand_strip(
                 let value_literal = proc_macro2::Literal::f32_unsuffixed(value);
 
                 quote! {
-                    strip_builder = strip_builder.size(egui_extras::Size::#size_fn(#value_literal));
+                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#value_literal));
                 }
             }
         };
@@ -190,14 +195,14 @@ pub fn expand_strip(
     };
 
     quote_into!(expanded +=
-        let strip_response = strip_builder.#direction_ident (|mut strip| {
+        let macro_strip_response = macro_strip_builder.#direction_ident (|mut strip| {
             #{
                 for child in iter {
                     let borrowed_child = child.borrow();
 
                     let children = match borrowed_child.get_children() {
                         Some(children) => children,
-                        None => panic!("No Rust allowed here!"),
+                        None => return Err("No Rust allowed here!".to_string()),
                     };
 
                     if children.is_empty() {
@@ -205,7 +210,7 @@ pub fn expand_strip(
                     } else {
                         quote_into!(expanded += strip.cell(|ui| {
                             #{
-                                expanded.append_all(crate::expand_node(child));
+                                expanded.append_all(crate::expand_node(child)?);
                             }
                         });)
                     }
@@ -214,5 +219,5 @@ pub fn expand_strip(
         });
     );
 
-    expanded
+    Ok(expanded)
 }
