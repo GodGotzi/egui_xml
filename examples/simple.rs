@@ -32,9 +32,9 @@ impl eframe::App for MyApp {
             load_layout!(
                 <?xml version="1.0" encoding="utf-8"?>
                 <Form>
-                    <Strip direction="td">
+                    <Strip direction="north">
                         <Panel size="relative" value="0.75">
-                            <Strip direction="ltr">
+                            <Strip direction="west">
                                 <Panel size="exact" value="250.0">
                                 </Panel>
                                 <Panel size="remainder">
