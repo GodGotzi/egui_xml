@@ -23,13 +23,10 @@ fn color_background(ui: &mut Ui, color: egui::Color32) {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            let dynamic_x = 5.0;
-            let dynamic_if_separator = true;
-            
             load_layout!(
                 <?xml version="1.0" encoding="utf-8"?>
                 <Form>
-                    <Strip direction="north" gap="@dynamic_x" separator="@dynamic_if_separator">
+                    <Strip direction="north" gap="1.5">
                         <Panel size="relative" value="0.4">
                             <Strip direction="west">
                                 <Panel size="exact" value="250.0">

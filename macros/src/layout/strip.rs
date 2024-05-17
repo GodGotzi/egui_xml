@@ -62,8 +62,8 @@ struct StripInfo {
     direction: StripDirection,
 
     // Rust Token Stream
-    separator: Option<HybridAttribute<AttributeLitBool>>,
     gap: Option<HybridAttribute<AttributeLitF32>>,
+    separator: HybridAttribute<AttributeLitBool>,
     ui: proc_macro2::TokenStream,
 }
 
@@ -77,7 +77,8 @@ impl TryFrom<&HashMap<String, Vec<u8>>> for StripInfo {
         let gap = parse_optional_hybrid_attribute::<AttributeLitF32>(attributes, "gap")?;
 
         let separator =
-            parse_optional_hybrid_attribute::<AttributeLitBool>(attributes, "separator")?;
+            parse_optional_hybrid_attribute::<AttributeLitBool>(attributes, "separator")?
+                .unwrap_or(HybridAttribute::Literal(AttributeLitBool(false)));
 
         let ui = parse_optional_rust_attribute(attributes, "ui")?.unwrap_or(quote! { ui });
 
@@ -261,32 +262,30 @@ pub fn expand_strip(
 
                     if iter.len() - 1 != index {
                         if info.gap.is_some() {
-                            if let Some(sep) = info.separator.clone() {
-                                match sep {
-                                    HybridAttribute::Literal(value) => {
-                                        if value.0 {
-                                            quote_into!(expanded +=
-                                                strip.cell(|ui| {
-                                                    ui.separator();
-                                                });
-                                            )
-                                        } else {
-                                            quote_into!(expanded +=
-                                                strip.empty();
-                                            )
-                                        }
-                                    }
-                                    HybridAttribute::DynamicRust(stream) => {
+                            match &info.separator {
+                                HybridAttribute::Literal(value) => {
+                                    if value.0 {
                                         quote_into!(expanded +=
-                                            if #stream {
-                                                strip.cell(|ui| {
-                                                    ui.separator();
-                                                });
-                                            } else {
-                                                strip.empty();
-                                            }
+                                            strip.cell(|ui| {
+                                                ui.separator();
+                                            });
+                                        )
+                                    } else {
+                                        quote_into!(expanded +=
+                                            strip.empty();
                                         )
                                     }
+                                }
+                                HybridAttribute::DynamicRust(stream) => {
+                                    quote_into!(expanded +=
+                                        if #stream {
+                                            strip.cell(|ui| {
+                                                ui.separator();
+                                            });
+                                        } else {
+                                            strip.empty();
+                                        }
+                                    )
                                 }
                             }
                         }
