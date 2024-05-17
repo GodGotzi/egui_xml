@@ -44,25 +44,54 @@ enum StripDirection {
     TopDown,
 }
 
+const SEPARATOR_GAP: f32 = 2.0;
+
 struct StripInfo {
     direction: StripDirection,
+    gap: Option<f32>,
+    separator: Option<bool>,
 }
 
 impl TryFrom<&HashMap<String, String>> for StripInfo {
     type Error = String;
 
     fn try_from(attributes: &HashMap<String, String>) -> Result<Self, Self::Error> {
-        if let Some(dir) = attributes.get("direction") {
-            if let Ok(strip_direction) = StripDirection::from_str(dir) {
-                return Ok(StripInfo {
-                    direction: strip_direction,
-                });
+        let dir = match attributes.get("direction") {
+            Some(dir) => StripDirection::from_str(dir)
+                .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?,
+            None => return Err("Direction Attribute doesn't exist!".to_string()),
+        };
+
+        let mut gap = match attributes.get("gap") {
+            Some(gap) => Some(
+                gap.parse::<f32>()
+                    .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?,
+            ),
+            None => None,
+        };
+
+        let seperator = match attributes.get("separator") {
+            Some(seperator) => Some(
+                seperator
+                    .parse::<bool>()
+                    .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?,
+            ),
+            None => None,
+        };
+
+        if seperator.is_some() && gap.is_none() {
+            if let Some(value) = gap.clone() {
+                gap = Some(value.min(2.0));
             } else {
-                return Err("direction type doesn't exist!".to_string());
+                gap = Some(2.0);
             }
         }
 
-        Err("direction attribute doesn't exist!".to_string())
+        Ok(StripInfo {
+            direction: dir,
+            gap,
+            separator: seperator,
+        })
     }
 }
 
@@ -144,7 +173,7 @@ pub fn expand_strip(
         children.iter().collect()
     };
 
-    for child in iter.clone() {
+    for (index, child) in iter.iter().enumerate() {
         let child_info: StripChildInfo = match child.borrow().get_attributes() {
             Some(child_info) => child_info.try_into()?,
             None => return Err("No Rust allowed here!".to_string()),
@@ -185,6 +214,19 @@ pub fn expand_strip(
         };
 
         expanded.append_all(size_expanded);
+
+        if iter.len() - 1 != index {
+            if info.gap.is_some() {
+                let gap = info.gap.unwrap_or(SEPARATOR_GAP);
+                let gap_literal = proc_macro2::Literal::f32_unsuffixed(gap);
+
+                let gap_fn = proc_macro2::Ident::new("exact", Span::call_site());
+
+                expanded.append_all(quote! {
+                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#gap_fn(#gap_literal));
+                });
+            }
+        }
     }
 
     let direction_ident = match info.direction {
@@ -197,7 +239,7 @@ pub fn expand_strip(
     quote_into!(expanded +=
         let macro_strip_response = macro_strip_builder.#direction_ident (|mut strip| {
             #{
-                for child in iter {
+                for (index, child) in iter.iter().enumerate() {
                     let borrowed_child = child.borrow();
 
                     let children = match borrowed_child.get_children() {
@@ -213,6 +255,18 @@ pub fn expand_strip(
                                 expanded.append_all(crate::expand_node(child)?);
                             }
                         });)
+                    }
+
+                    if iter.len() - 1 != index {
+                        if info.gap.is_some() {
+                            if info.separator.unwrap_or(false) {
+                                quote_into!(expanded += strip.cell(|ui| {
+                                    ui.separator();
+                                });)
+                            } else {
+                                quote_into!(expanded += strip.empty();)
+                            }
+                        }
                     }
                 }
             }

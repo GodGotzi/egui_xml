@@ -26,7 +26,7 @@ impl eframe::App for MyApp {
             load_layout!(
                 <?xml version="1.0" encoding="utf-8"?>
                 <Form>
-                    <Strip direction="north">
+                    <Strip direction="north" gap="1.5">
                         <Panel size="relative" value="0.4">
                             <Strip direction="west">
                                 <Panel size="exact" value="250.0">
@@ -38,7 +38,21 @@ impl eframe::App for MyApp {
                             </Strip>
                         </Panel>
                         <Panel size="remainder">
-                            color_background(ui, Color32::from_rgb(0, 0, 255));
+                            <Strip direction="west">
+                                <Panel size="relative" value="0.3">
+                                    color_background(ui, Color32::from_rgb(0, 0, 255));
+                                </Panel>
+                                <Panel size="remainder">
+                                    <Strip direction="north" gap="1.5">
+                                        <Panel size="relative" value="0.3">
+                                            color_background(ui, Color32::from_rgb(0, 255, 255));
+                                        </Panel>
+                                        <Panel size="remainder">
+                                            color_background(ui, Color32::from_rgb(255, 0, 255));
+                                        </Panel>
+                                    </Strip>
+                                </Panel>
+                            </Strip>
                         </Panel>
                     </Strip>
                 </Form>
