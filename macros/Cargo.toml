@@ -12,6 +12,5 @@ quote = "1.0"
 quote_into = "0.2.0"
 proc-macro2 = "1.0"
 parser = { path = "../parser" }
-egui_extras = "0.22"
 strum_macros = "0.26"
 strum = "0.26"

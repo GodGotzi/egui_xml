@@ -30,9 +30,7 @@ fn expand_nodes(children: &[Rc<RefCell<Node>>]) -> proc_macro2::TokenStream {
 fn expand_node(node: &Rc<RefCell<Node>>) -> proc_macro2::TokenStream {
     match &*node.borrow() {
         parser::Node::Panel { children, .. } => expand_nodes(children),
-        parser::Node::Rust {
-            attributes, code, ..
-        } => code.parse().unwrap(),
+        parser::Node::Rust { code, .. } => code.parse().unwrap(),
         parser::Node::Border {
             children,
             attributes,

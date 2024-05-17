@@ -16,7 +16,6 @@ pub enum Node {
     },
     Rust {
         parent: Option<Rc<RefCell<Node>>>,
-        attributes: HashMap<String, String>,
         code: String,
     },
     Border {
@@ -83,25 +82,25 @@ impl Node {
         }
     }
 
-    pub fn get_children(&self) -> &Vec<Rc<RefCell<Node>>> {
+    pub fn get_children(&self) -> Option<&Vec<Rc<RefCell<Node>>>> {
         match self {
-            Node::Panel { children, .. } => &children,
-            Node::Rust { .. } => panic!("No Children!"),
-            Node::Border { children, .. } => &children,
-            Node::Grid { children, .. } => &children,
-            Node::Default { children, .. } => &children,
-            Node::Strip { children, .. } => &children,
+            Node::Panel { children, .. } => Some(&children),
+            Node::Rust { .. } => None,
+            Node::Border { children, .. } => Some(&children),
+            Node::Grid { children, .. } => Some(&children),
+            Node::Default { children, .. } => Some(&children),
+            Node::Strip { children, .. } => Some(&children),
         }
     }
 
-    pub fn get_attributes(&self) -> &HashMap<String, String> {
+    pub fn get_attributes(&self) -> Option<&HashMap<String, String>> {
         match self {
-            Node::Panel { attributes, .. } => &attributes,
-            Node::Rust { attributes, .. } => &attributes,
-            Node::Border { attributes, .. } => &attributes,
-            Node::Grid { attributes, .. } => &attributes,
-            Node::Default { attributes, .. } => &attributes,
-            Node::Strip { attributes, .. } => &attributes,
+            Node::Panel { attributes, .. } => Some(&attributes),
+            Node::Rust { .. } => None,
+            Node::Border { attributes, .. } => Some(&attributes),
+            Node::Grid { attributes, .. } => Some(&attributes),
+            Node::Default { attributes, .. } => Some(&attributes),
+            Node::Strip { attributes, .. } => Some(&attributes),
         }
     }
 }
@@ -174,7 +173,6 @@ impl TryFrom<String> for Form {
                             b"Rust" => Rc::new(RefCell::new(Node::Rust {
                                 parent: Some(current_node.clone()),
                                 code: String::new(),
-                                attributes,
                             })),
                             _ => {
                                 panic!("Not a Node {:?}", from_utf8(region_start.name().0).unwrap())
@@ -186,7 +184,14 @@ impl TryFrom<String> for Form {
                     }
                 }
                 Ok(Event::Text(text)) => {
-                    current_node.borrow_mut().push_text(text);
+                    let text_str = from_utf8(&text).unwrap();
+
+                    current_node
+                        .borrow_mut()
+                        .add_node(Rc::new(RefCell::new(Node::Rust {
+                            parent: Some(current_node.clone()),
+                            code: text_str.to_string(),
+                        })));
                 }
                 Ok(Event::End(_)) => {
                     let parent = current_node.borrow_mut().get_parent();
@@ -204,7 +209,7 @@ impl TryFrom<String> for Form {
         let root = root.borrow_mut();
 
         Ok(Form {
-            nodes: root.get_children().clone(),
+            nodes: root.get_children().unwrap().clone(),
         })
     }
 }

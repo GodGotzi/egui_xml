@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui::{Color32, Rounding, Sense, Ui};
+use egui::Ui;
 use egui_form::load_layout;
 
 fn main() -> Result<(), eframe::Error> {
@@ -32,22 +32,23 @@ impl eframe::App for MyApp {
             load_layout!(
                 <?xml version="1.0" encoding="utf-8"?>
                 <Form>
+                    test_ui(ui);
+
                     <Strip direction="north">
                         <Panel size="relative" value="0.75">
+                            // test_ui(ui);
+                            // test2_ui(ui);
+
                             <Strip direction="west">
                                 <Panel size="exact" value="250.0">
                                 </Panel>
                                 <Panel size="remainder">
-                                    <Rust>
-                                        test_ui(ui);
-                                    </Rust>
+                                    test_ui(ui);
                                 </Panel>
                             </Strip>
                         </Panel>
                         <Panel size="remainder">
-                            <Rust>
-                                test2_ui(ui);
-                            </Rust>
+                            test2_ui(ui);
                         </Panel>
                     </Strip>
                 </Form>

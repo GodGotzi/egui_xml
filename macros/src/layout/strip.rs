@@ -140,7 +140,10 @@ pub fn expand_strip(
     };
 
     for child in iter.clone() {
-        let child_info: StripChildInfo = child.borrow().get_attributes().try_into().unwrap();
+        let child_info: StripChildInfo = match child.borrow().get_attributes() {
+            Some(child_info) => child_info.try_into().unwrap(),
+            None => panic!("No Rust allowed here!"),
+        };
 
         let size_expanded = match child_info.size {
             StripChildSize::Remainder => {
@@ -190,7 +193,14 @@ pub fn expand_strip(
         let strip_response = strip_builder.#direction_ident (|mut strip| {
             #{
                 for child in iter {
-                    if child.borrow().get_children().is_empty() {
+                    let borrowed_child = child.borrow();
+
+                    let children = match borrowed_child.get_children() {
+                        Some(children) => children,
+                        None => panic!("No Rust allowed here!"),
+                    };
+
+                    if children.is_empty() {
                         quote_into!(expanded += strip.empty();)
                     } else {
                         quote_into!(expanded += strip.cell(|ui| {

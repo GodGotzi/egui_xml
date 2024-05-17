@@ -39,8 +39,8 @@ impl std::fmt::Debug for Node {
                 write!(f, "\n\t{:indent$}", "", indent = amount * 4)?;
                 writeln!(f, "</Panel>")?;
             }
-            Node::Rust { attributes, .. } => {
-                write!(f, "<UiExecutable {:?}></UiExecutable>", attributes)?;
+            Node::Rust { code, .. } => {
+                write!(f, "{:?}", code)?;
             }
             Node::Border { children, .. } => {
                 write!(f, "<Border>")?;
