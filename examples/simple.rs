@@ -38,12 +38,16 @@ impl eframe::App for MyApp {
                                 <Panel size="exact" value="250.0">
                                 </Panel>
                                 <Panel size="remainder">
-                                    <UiExecutable ident="test2_ui"></UiExecutable>
+                                    <Rust>
+                                        test_ui(ui);
+                                    </Rust>
                                 </Panel>
                             </Strip>
                         </Panel>
                         <Panel size="remainder">
-                            <UiExecutable ident="test_ui"></UiExecutable>
+                            <Rust>
+                                test2_ui(ui);
+                            </Rust>
                         </Panel>
                     </Strip>
                 </Form>

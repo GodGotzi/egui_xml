@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::str::from_utf8;
 
 use quick_xml::events::attributes::Attributes;
-use quick_xml::events::Event;
+use quick_xml::events::{BytesText, Event};
 use quick_xml::reader::Reader;
 
 pub enum Node {
@@ -12,30 +12,36 @@ pub enum Node {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
         attributes: HashMap<String, String>,
+        code: String,
     },
-    UiExecutable {
+    Rust {
         parent: Option<Rc<RefCell<Node>>>,
         attributes: HashMap<String, String>,
+        code: String,
     },
     Border {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
         attributes: HashMap<String, String>,
+        code: String,
     },
     Grid {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
         attributes: HashMap<String, String>,
+        code: String,
     },
     Default {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
         attributes: HashMap<String, String>,
+        code: String,
     },
     Strip {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
         attributes: HashMap<String, String>,
+        code: String,
     },
 }
 
@@ -43,7 +49,7 @@ impl Node {
     pub fn add_node(&mut self, node: Rc<RefCell<Node>>) -> Rc<RefCell<Node>> {
         match self {
             Node::Panel { children, .. } => children.push(node.clone()),
-            Node::UiExecutable { .. } => {
+            Node::Rust { .. } => {
                 panic!("No Children!");
             }
             Node::Border { children, .. } => children.push(node.clone()),
@@ -55,10 +61,21 @@ impl Node {
         node
     }
 
+    pub fn push_text(&mut self, text: BytesText) {
+        match self {
+            Node::Panel { code, .. } => code.push_str(from_utf8(&text).unwrap()),
+            Node::Rust { code, .. } => code.push_str(from_utf8(&text).unwrap()),
+            Node::Border { code, .. } => code.push_str(from_utf8(&text).unwrap()),
+            Node::Grid { code, .. } => code.push_str(from_utf8(&text).unwrap()),
+            Node::Default { code, .. } => code.push_str(from_utf8(&text).unwrap()),
+            Node::Strip { code, .. } => code.push_str(from_utf8(&text).unwrap()),
+        };
+    }
+
     pub fn get_parent(&self) -> Option<Rc<RefCell<Node>>> {
         match self {
             Node::Panel { parent, .. } => parent.clone(),
-            Node::UiExecutable { parent, .. } => parent.clone(),
+            Node::Rust { parent, .. } => parent.clone(),
             Node::Border { parent, .. } => parent.clone(),
             Node::Grid { parent, .. } => parent.clone(),
             Node::Default { parent, .. } => parent.clone(),
@@ -69,7 +86,7 @@ impl Node {
     pub fn get_children(&self) -> &Vec<Rc<RefCell<Node>>> {
         match self {
             Node::Panel { children, .. } => &children,
-            Node::UiExecutable { .. } => panic!("No Children!"),
+            Node::Rust { .. } => panic!("No Children!"),
             Node::Border { children, .. } => &children,
             Node::Grid { children, .. } => &children,
             Node::Default { children, .. } => &children,
@@ -80,7 +97,7 @@ impl Node {
     pub fn get_attributes(&self) -> &HashMap<String, String> {
         match self {
             Node::Panel { attributes, .. } => &attributes,
-            Node::UiExecutable { attributes, .. } => &attributes,
+            Node::Rust { attributes, .. } => &attributes,
             Node::Border { attributes, .. } => &attributes,
             Node::Grid { attributes, .. } => &attributes,
             Node::Default { attributes, .. } => &attributes,
@@ -109,6 +126,7 @@ impl TryFrom<String> for Form {
         let root: Rc<RefCell<Node>> = Rc::new(RefCell::new(Node::Default {
             parent: None,
             children: Vec::new(),
+            code: String::new(),
             attributes: HashMap::new(),
         }));
 
@@ -132,25 +150,30 @@ impl TryFrom<String> for Form {
                             b"Panel" => Rc::new(RefCell::new(Node::Panel {
                                 parent: Some(current_node.clone()),
                                 children: Vec::new(),
+                                code: String::new(),
                                 attributes,
                             })),
                             b"Strip" => Rc::new(RefCell::new(Node::Strip {
                                 parent: Some(current_node.clone()),
                                 children: Vec::new(),
+                                code: String::new(),
                                 attributes,
                             })),
                             b"Border" => Rc::new(RefCell::new(Node::Border {
                                 parent: Some(current_node.clone()),
                                 children: Vec::new(),
+                                code: String::new(),
                                 attributes,
                             })),
                             b"Grid" => Rc::new(RefCell::new(Node::Grid {
                                 parent: Some(current_node.clone()),
                                 children: Vec::new(),
+                                code: String::new(),
                                 attributes,
                             })),
-                            b"UiExecutable" => Rc::new(RefCell::new(Node::UiExecutable {
+                            b"Rust" => Rc::new(RefCell::new(Node::Rust {
                                 parent: Some(current_node.clone()),
+                                code: String::new(),
                                 attributes,
                             })),
                             _ => {
@@ -161,6 +184,9 @@ impl TryFrom<String> for Form {
                         let new_node = current_node.borrow_mut().add_node(node);
                         current_node = new_node;
                     }
+                }
+                Ok(Event::Text(text)) => {
+                    current_node.borrow_mut().push_text(text);
                 }
                 Ok(Event::End(_)) => {
                     let parent = current_node.borrow_mut().get_parent();

@@ -1,6 +1,10 @@
 extern crate proc_macro;
 
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
 use layout::strip::expand_strip;
 use parser::{Form, Node};
@@ -26,7 +30,9 @@ fn expand_nodes(children: &[Rc<RefCell<Node>>]) -> proc_macro2::TokenStream {
 fn expand_node(node: &Rc<RefCell<Node>>) -> proc_macro2::TokenStream {
     match &*node.borrow() {
         parser::Node::Panel { children, .. } => expand_nodes(children),
-        parser::Node::UiExecutable { attributes, .. } => expand_ui_executable(attributes),
+        parser::Node::Rust {
+            attributes, code, ..
+        } => code.parse().unwrap(),
         parser::Node::Border {
             children,
             attributes,
@@ -43,17 +49,6 @@ fn expand_node(node: &Rc<RefCell<Node>>) -> proc_macro2::TokenStream {
             attributes,
             ..
         } => expand_strip(children, attributes),
-    }
-}
-
-fn expand_ui_executable(attributes: &HashMap<String, String>) -> proc_macro2::TokenStream {
-    let ui_fn = match attributes.get("ident") {
-        Some(ident) => proc_macro2::Ident::new(&ident, Span::call_site()),
-        None => panic!(""),
-    };
-
-    quote! {
-        #ui_fn (ui);
     }
 }
 
