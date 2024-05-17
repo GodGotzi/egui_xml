@@ -1,12 +1,26 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc, str::FromStr};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    rc::Rc,
+    str::{from_utf8, FromStr},
+};
 
-use parser::Node;
+use parser::{
+    attribute::{
+        parse_optional_hybrid_attribute, AttributeLitBool, AttributeLitF32, HybridAttribute,
+    },
+    Node,
+};
 use proc_macro2::Span;
 use quote::{quote, TokenStreamExt};
 
 use quote_into::quote_into;
 
 use strum_macros::EnumString;
+
+use crate::XMLContext;
+
+use parser::attribute::{parse_hybrid_attribute, parse_optional_rust_attribute, parse_string};
 
 #[derive(PartialEq, Eq, EnumString)]
 enum StripDirection {
@@ -44,53 +58,34 @@ enum StripDirection {
     TopDown,
 }
 
-const SEPARATOR_GAP: f32 = 2.0;
-
 struct StripInfo {
     direction: StripDirection,
-    gap: Option<f32>,
-    separator: Option<bool>,
+
+    // Rust Token Stream
+    separator: Option<HybridAttribute<AttributeLitBool>>,
+    gap: Option<HybridAttribute<AttributeLitF32>>,
+    ui: proc_macro2::TokenStream,
 }
 
-impl TryFrom<&HashMap<String, String>> for StripInfo {
+impl TryFrom<&HashMap<String, Vec<u8>>> for StripInfo {
     type Error = String;
 
-    fn try_from(attributes: &HashMap<String, String>) -> Result<Self, Self::Error> {
-        let dir = match attributes.get("direction") {
-            Some(dir) => StripDirection::from_str(dir)
-                .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?,
-            None => return Err("Direction Attribute doesn't exist!".to_string()),
-        };
+    fn try_from(attributes: &HashMap<String, Vec<u8>>) -> Result<Self, Self::Error> {
+        let direction = StripDirection::from_str(&parse_string(attributes, "direction")?)
+            .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?;
 
-        let mut gap = match attributes.get("gap") {
-            Some(gap) => Some(
-                gap.parse::<f32>()
-                    .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?,
-            ),
-            None => None,
-        };
+        let gap = parse_optional_hybrid_attribute::<AttributeLitF32>(attributes, "gap")?;
 
-        let seperator = match attributes.get("separator") {
-            Some(seperator) => Some(
-                seperator
-                    .parse::<bool>()
-                    .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?,
-            ),
-            None => None,
-        };
+        let separator =
+            parse_optional_hybrid_attribute::<AttributeLitBool>(attributes, "separator")?;
 
-        if seperator.is_some() && gap.is_none() {
-            if let Some(value) = gap.clone() {
-                gap = Some(value.min(2.0));
-            } else {
-                gap = Some(2.0);
-            }
-        }
+        let ui = parse_optional_rust_attribute(attributes, "ui")?.unwrap_or(quote! { ui });
 
         Ok(StripInfo {
-            direction: dir,
+            direction,
             gap,
-            separator: seperator,
+            separator,
+            ui,
         })
     }
 }
@@ -100,23 +95,23 @@ enum StripChildSize {
     #[strum(serialize = "Remainder", serialize = "remainder")]
     Remainder,
     #[strum(serialize = "Exact", serialize = "exact")]
-    Exact(f32),
+    Exact(proc_macro2::TokenStream),
     #[strum(serialize = "Initial", serialize = "initial")]
-    Initial(f32),
+    Initial(proc_macro2::TokenStream),
     #[strum(serialize = "Relative", serialize = "relative")]
-    Relative(f32),
+    Relative(proc_macro2::TokenStream),
 }
 
 struct StripChildInfo {
     size: StripChildSize,
 }
 
-impl TryFrom<&HashMap<String, String>> for StripChildInfo {
+impl TryFrom<&HashMap<String, Vec<u8>>> for StripChildInfo {
     type Error = String;
 
-    fn try_from(attributes: &HashMap<String, String>) -> Result<Self, Self::Error> {
+    fn try_from(attributes: &HashMap<String, Vec<u8>>) -> Result<Self, Self::Error> {
         let size = match attributes.get("size") {
-            Some(size) => size,
+            Some(size) => from_utf8(size).unwrap(),
             None => return Err("Size Attribute doesn't exist!".to_string()),
         };
 
@@ -130,24 +125,23 @@ impl TryFrom<&HashMap<String, String>> for StripChildInfo {
                 });
             }
             _ => {
-                let value_str = match attributes.get("value") {
-                    Some(value) => value,
-                    None => return Err("Value Attribute doesn't exist!".to_string()),
-                };
+                let hybrid_attribute =
+                    parse_hybrid_attribute::<AttributeLitF32>(attributes, "value")?;
 
-                let value = value_str
-                    .parse::<f32>()
-                    .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?;
+                let stream = match hybrid_attribute {
+                    HybridAttribute::Literal(value) => value.into(),
+                    HybridAttribute::DynamicRust(stream) => stream,
+                };
 
                 match child_size {
                     StripChildSize::Exact(_) => Ok(StripChildInfo {
-                        size: StripChildSize::Exact(value),
+                        size: StripChildSize::Exact(stream),
                     }),
                     StripChildSize::Initial(_) => Ok(StripChildInfo {
-                        size: StripChildSize::Initial(value),
+                        size: StripChildSize::Initial(stream),
                     }),
                     StripChildSize::Relative(_) => Ok(StripChildInfo {
-                        size: StripChildSize::Relative(value),
+                        size: StripChildSize::Relative(stream),
                     }),
                     _ => panic!("Why you here!"),
                 }
@@ -157,12 +151,21 @@ impl TryFrom<&HashMap<String, String>> for StripChildInfo {
 }
 
 pub fn expand_strip(
-    children: &[Rc<RefCell<Node>>],
-    attributes: &HashMap<String, String>,
+    strip: &Rc<RefCell<Node>>,
+    ctx: &XMLContext,
 ) -> Result<proc_macro2::TokenStream, String> {
-    let info: StripInfo = attributes.try_into().unwrap();
+    let children_borrow = strip.borrow();
+    let children = children_borrow.get_children().unwrap();
+
+    let attributes_borrow = strip.borrow();
+    let attributes = attributes_borrow.get_attributes().unwrap();
+
+    let info: StripInfo = attributes.try_into()?;
+
+    let ui_var = info.ui;
+
     let mut expanded = quote! {
-        let mut macro_strip_builder = egui_extras::StripBuilder::new(ui);
+        let mut macro_strip_builder = egui_extras::StripBuilder::new(#ui_var);
     };
 
     let iter: Vec<&Rc<RefCell<Node>>> = if info.direction == StripDirection::BottomUp
@@ -187,28 +190,25 @@ pub fn expand_strip(
                     macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn());
                 }
             }
-            StripChildSize::Exact(value) => {
+            StripChildSize::Exact(stream) => {
                 let size_fn = proc_macro2::Ident::new("exact", Span::call_site());
-                let value_literal = proc_macro2::Literal::f32_unsuffixed(value);
 
                 quote! {
-                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#value_literal));
+                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#stream));
                 }
             }
-            StripChildSize::Initial(value) => {
+            StripChildSize::Initial(stream) => {
                 let size_fn = proc_macro2::Ident::new("initial", Span::call_site());
-                let value_literal = proc_macro2::Literal::f32_unsuffixed(value);
 
                 quote! {
-                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#value_literal));
+                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#stream));
                 }
             }
-            StripChildSize::Relative(value) => {
+            StripChildSize::Relative(stream) => {
                 let size_fn = proc_macro2::Ident::new("relative", Span::call_site());
-                let value_literal = proc_macro2::Literal::f32_unsuffixed(value);
 
                 quote! {
-                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#value_literal));
+                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#stream));
                 }
             }
         };
@@ -216,14 +216,16 @@ pub fn expand_strip(
         expanded.append_all(size_expanded);
 
         if iter.len() - 1 != index {
-            if info.gap.is_some() {
-                let gap = info.gap.unwrap_or(SEPARATOR_GAP);
-                let gap_literal = proc_macro2::Literal::f32_unsuffixed(gap);
+            if let Some(gap) = info.gap.clone() {
+                let gap_stream = match gap {
+                    HybridAttribute::Literal(value) => value.into(),
+                    HybridAttribute::DynamicRust(stream) => stream,
+                };
 
                 let gap_fn = proc_macro2::Ident::new("exact", Span::call_site());
 
                 expanded.append_all(quote! {
-                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#gap_fn(#gap_literal));
+                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#gap_fn(#gap_stream));
                 });
             }
         }
@@ -252,19 +254,40 @@ pub fn expand_strip(
                     } else {
                         quote_into!(expanded += strip.cell(|ui| {
                             #{
-                                expanded.append_all(crate::expand_node(child)?);
+                                expanded.append_all(crate::expand_node(child, &ctx)?);
                             }
                         });)
                     }
 
                     if iter.len() - 1 != index {
                         if info.gap.is_some() {
-                            if info.separator.unwrap_or(false) {
-                                quote_into!(expanded += strip.cell(|ui| {
-                                    ui.separator();
-                                });)
-                            } else {
-                                quote_into!(expanded += strip.empty();)
+                            if let Some(sep) = info.separator.clone() {
+                                match sep {
+                                    HybridAttribute::Literal(value) => {
+                                        if value.0 {
+                                            quote_into!(expanded +=
+                                                strip.cell(|ui| {
+                                                    ui.separator();
+                                                });
+                                            )
+                                        } else {
+                                            quote_into!(expanded +=
+                                                strip.empty();
+                                            )
+                                        }
+                                    }
+                                    HybridAttribute::DynamicRust(stream) => {
+                                        quote_into!(expanded +=
+                                            if #stream {
+                                                strip.cell(|ui| {
+                                                    ui.separator();
+                                                });
+                                            } else {
+                                                strip.empty();
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

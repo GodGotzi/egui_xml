@@ -1,5 +1,5 @@
 use eframe::egui;
-use egui::{Color32, Rounding, Ui};
+use egui::{Rounding, Ui};
 use egui_form::load_layout;
 
 fn main() -> Result<(), eframe::Error> {
@@ -23,32 +23,35 @@ fn color_background(ui: &mut Ui, color: egui::Color32) {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            let dynamic_x = 5.0;
+            let dynamic_if_separator = true;
+            
             load_layout!(
                 <?xml version="1.0" encoding="utf-8"?>
                 <Form>
-                    <Strip direction="north" gap="1.5">
+                    <Strip direction="north" gap="@dynamic_x" separator="@dynamic_if_separator">
                         <Panel size="relative" value="0.4">
                             <Strip direction="west">
                                 <Panel size="exact" value="250.0">
-                                    color_background(ui, Color32::from_rgb(255, 255, 0));
+                                    color_background(ui, egui::Color32::from_rgb(255, 255, 0));
                                 </Panel>
                                 <Panel size="remainder">
-                                    color_background(ui, Color32::from_rgb(255, 0, 0));
+                                    color_background(ui, egui::Color32::from_rgb(255, 0, 0));
                                 </Panel>
                             </Strip>
                         </Panel>
                         <Panel size="remainder">
                             <Strip direction="west">
                                 <Panel size="relative" value="0.3">
-                                    color_background(ui, Color32::from_rgb(0, 0, 255));
+                                    color_background(ui, egui::Color32::from_rgb(0, 0, 255));
                                 </Panel>
                                 <Panel size="remainder">
                                     <Strip direction="north" gap="1.5">
                                         <Panel size="relative" value="0.3">
-                                            color_background(ui, Color32::from_rgb(0, 255, 255));
+                                            color_background(ui, egui::Color32::from_rgb(0, 255, 255));
                                         </Panel>
                                         <Panel size="remainder">
-                                            color_background(ui, Color32::from_rgb(255, 0, 255));
+                                            color_background(ui, egui::Color32::from_rgb(255, 0, 255));
                                         </Panel>
                                     </Strip>
                                 </Panel>

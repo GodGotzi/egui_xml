@@ -11,29 +11,33 @@ use syn::{parse_macro_input, LitStr};
 
 mod layout;
 
-fn expand_nodes(children: &[Rc<RefCell<Node>>]) -> Result<proc_macro2::TokenStream, String> {
+struct XMLContext;
+
+fn expand_nodes(
+    children: &[Rc<RefCell<Node>>],
+    ctx: &XMLContext,
+) -> Result<proc_macro2::TokenStream, String> {
     let mut expanded = quote! {};
 
     for node in children.iter() {
-        let node_expanded = expand_node(node)?;
+        let node_expanded = expand_node(node, ctx)?;
         expanded.append_all(node_expanded);
     }
 
     Ok(expanded)
 }
 
-fn expand_node(node: &Rc<RefCell<Node>>) -> Result<proc_macro2::TokenStream, String> {
+fn expand_node(
+    node: &Rc<RefCell<Node>>,
+    ctx: &XMLContext,
+) -> Result<proc_macro2::TokenStream, String> {
     match &*node.borrow() {
-        parser::Node::Panel { children, .. } => expand_nodes(children),
+        parser::Node::Panel { children, .. } => expand_nodes(children, ctx),
         parser::Node::Rust { code, .. } => Ok(code.parse().unwrap()),
         parser::Node::Border { .. } => Ok(quote! {}),
         parser::Node::Grid { .. } => Ok(quote! {}),
-        parser::Node::Default { children, .. } => expand_nodes(children),
-        parser::Node::Strip {
-            children,
-            attributes,
-            ..
-        } => expand_strip(children, attributes),
+        parser::Node::Default { children, .. } => expand_nodes(children, ctx),
+        parser::Node::Strip { .. } => expand_strip(node, ctx),
     }
 }
 
@@ -46,7 +50,9 @@ pub fn load_layout(input: TokenStream) -> TokenStream {
         Err(_) => panic!("Failed to load XML"),
     };
 
-    let expanded = match expand_nodes(&form.nodes) {
+    let ctx = XMLContext;
+
+    let expanded = match expand_nodes(&form.nodes, &ctx) {
         Ok(expanded) => expanded,
         Err(e) => panic!("{}", e),
     };

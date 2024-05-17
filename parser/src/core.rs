@@ -11,7 +11,7 @@ pub enum Node {
     Panel {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
-        attributes: HashMap<String, String>,
+        attributes: HashMap<String, Vec<u8>>,
         code: String,
     },
     Rust {
@@ -21,25 +21,25 @@ pub enum Node {
     Border {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
-        attributes: HashMap<String, String>,
+        attributes: HashMap<String, Vec<u8>>,
         code: String,
     },
     Grid {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
-        attributes: HashMap<String, String>,
+        attributes: HashMap<String, Vec<u8>>,
         code: String,
     },
     Default {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
-        attributes: HashMap<String, String>,
+        attributes: HashMap<String, Vec<u8>>,
         code: String,
     },
     Strip {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
-        attributes: HashMap<String, String>,
+        attributes: HashMap<String, Vec<u8>>,
         code: String,
     },
 }
@@ -93,7 +93,7 @@ impl Node {
         }
     }
 
-    pub fn get_attributes(&self) -> Option<&HashMap<String, String>> {
+    pub fn get_attributes(&self) -> Option<&HashMap<String, Vec<u8>>> {
         match self {
             Node::Panel { attributes, .. } => Some(&attributes),
             Node::Rust { .. } => None,
@@ -103,12 +103,24 @@ impl Node {
             Node::Strip { attributes, .. } => Some(&attributes),
         }
     }
+
+    fn set_attributes(&mut self, attributes: HashMap<String, Vec<u8>>) {
+        match self {
+            Node::Panel { attributes: a, .. } => *a = attributes,
+            Node::Rust { .. } => (),
+            Node::Border { attributes: a, .. } => *a = attributes,
+            Node::Grid { attributes: a, .. } => *a = attributes,
+            Node::Default { attributes: a, .. } => *a = attributes,
+            Node::Strip { attributes: a, .. } => *a = attributes,
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct Form {
     #[allow(dead_code)]
     pub nodes: Vec<Rc<RefCell<Node>>>,
+    pub attributes: HashMap<String, Vec<u8>>,
 }
 
 impl TryFrom<String> for Form {
@@ -140,6 +152,9 @@ impl TryFrom<String> for Form {
                 Ok(Event::Start(region_start)) => {
                     if !root_starting {
                         if b"Form" == region_start.name().as_ref() {
+                            let attributes = prepare_attributes(region_start.attributes());
+                            root.borrow_mut().set_attributes(attributes);
+
                             root_starting = true;
                         }
                     } else {
@@ -210,11 +225,12 @@ impl TryFrom<String> for Form {
 
         Ok(Form {
             nodes: root.get_children().unwrap().clone(),
+            attributes: root.get_attributes().unwrap().clone(),
         })
     }
 }
 
-fn prepare_attributes(attributes: Attributes) -> HashMap<String, String> {
+fn prepare_attributes(attributes: Attributes) -> HashMap<String, Vec<u8>> {
     let mut map = HashMap::new();
 
     attributes.for_each(|a| {
@@ -222,11 +238,275 @@ fn prepare_attributes(attributes: Attributes) -> HashMap<String, String> {
 
         map.insert(
             from_utf8(a.key.0).unwrap().to_string(),
-            from_utf8(a.value.as_ref()).unwrap().to_string(),
+            a.value.iter().map(|&x| x).collect::<Vec<u8>>(),
         );
     });
 
     map
+}
+
+pub mod attribute {
+    use quote::quote;
+    use std::{collections::HashMap, str::FromStr};
+
+    #[derive(Clone)]
+    pub enum HybridAttribute<T: Clone> {
+        Literal(T),
+        DynamicRust(proc_macro2::TokenStream),
+    }
+
+    pub fn parse_rust_attribute(
+        attributes: &HashMap<String, Vec<u8>>,
+        attribute: &str,
+    ) -> Result<proc_macro2::TokenStream, String> {
+        let code = match attributes.get(attribute) {
+            Some(code) => code,
+            None => return Err(format!("Attribute {} not found", attribute)),
+        };
+
+        if code.is_empty() || code[0] != b'@' {
+            return Err("Code must start with @".to_string());
+        }
+
+        let code = match std::str::from_utf8(&code[1..]) {
+            Ok(code) => code,
+            Err(_) => return Err("Failed to parse code".to_string()),
+        };
+
+        let stream = match code.parse() {
+            Ok(stream) => stream,
+            Err(_) => return Err("Failed to parse code".to_string()),
+        };
+
+        Ok(stream)
+    }
+
+    pub fn parse_optional_rust_attribute(
+        attributes: &HashMap<String, Vec<u8>>,
+        attribute: &str,
+    ) -> Result<Option<proc_macro2::TokenStream>, String> {
+        let code = match attributes.get(attribute) {
+            Some(code) => code,
+            None => return Ok(None),
+        };
+
+        if code.is_empty() {
+            return Ok(None);
+        }
+
+        if code[0] != b'@' {
+            return Err("Code must start with @".to_string());
+        }
+
+        let code = match std::str::from_utf8(&code[1..]) {
+            Ok(code) => code,
+            Err(_) => return Err("Failed to parse attribute".to_string()),
+        };
+
+        let stream = match code.parse() {
+            Ok(stream) => stream,
+            Err(_) => return Err("Failed to parse attribute".to_string()),
+        };
+
+        Ok(Some(stream))
+    }
+
+    pub fn parse_optional_hybrid_attribute<T: FromStr + Into<proc_macro2::TokenStream> + Clone>(
+        attributes: &HashMap<String, Vec<u8>>,
+        attribute: &str,
+    ) -> Result<Option<HybridAttribute<T>>, String> {
+        let code = match attributes.get(attribute) {
+            Some(code) => code,
+            None => return Ok(None),
+        };
+
+        if code.is_empty() {
+            return Ok(None);
+        }
+
+        if code[0] != b'@' {
+            let code = match std::str::from_utf8(code) {
+                Ok(code) => code,
+                Err(_) => return Err("Failed to parse attribute".to_string()),
+            };
+
+            let value = match code.parse::<T>() {
+                Ok(value) => value,
+                Err(_) => return Err("Failed to parse attribute".to_string()),
+            };
+
+            return Ok(Some(HybridAttribute::Literal(value)));
+        }
+
+        let code = match std::str::from_utf8(&code[1..]) {
+            Ok(code) => code,
+            Err(_) => return Err("Failed to parse attribute".to_string()),
+        };
+
+        match code.parse::<T>() {
+            Ok(_) => return Err("Unneeded @ to indicate Rust Code".to_string()),
+            Err(_) => (),
+        };
+
+        let stream = match code.parse() {
+            Ok(stream) => stream,
+            Err(_) => {
+                return Err("Failed to parse code".to_string());
+            }
+        };
+
+        Ok(Some(HybridAttribute::DynamicRust(stream)))
+    }
+
+    pub fn parse_hybrid_attribute<T: FromStr + Into<proc_macro2::TokenStream> + Clone>(
+        attributes: &HashMap<String, Vec<u8>>,
+        attribute: &str,
+    ) -> Result<HybridAttribute<T>, String> {
+        let code = match attributes.get(attribute) {
+            Some(code) => code,
+            None => return Err(format!("Attribute {} not found", attribute)),
+        };
+
+        if code.is_empty() {
+            return Err("Attribute is empty".to_string());
+        }
+
+        if code[0] != b'@' {
+            let code = match std::str::from_utf8(code) {
+                Ok(code) => code,
+                Err(_) => return Err("Failed to parse attribute".to_string()),
+            };
+
+            let value = match code.parse::<T>() {
+                Ok(value) => value,
+                Err(_) => return Err("Failed to parse attribute".to_string()),
+            };
+
+            return Ok(HybridAttribute::Literal(value));
+        }
+
+        let code = match std::str::from_utf8(&code[1..]) {
+            Ok(code) => code,
+            Err(_) => return Err("Failed to parse code".to_string()),
+        };
+
+        match code.parse::<T>() {
+            Ok(_) => return Err("Unneeded @ to indicate Rust Code".to_string()),
+            Err(_) => (),
+        };
+
+        let stream = match code.parse() {
+            Ok(stream) => stream,
+            Err(_) => return Err("Failed to parse code".to_string()),
+        };
+
+        Ok(HybridAttribute::DynamicRust(stream))
+    }
+
+    pub fn parse_string(
+        attributes: &HashMap<String, Vec<u8>>,
+        attribute: &str,
+    ) -> Result<String, String> {
+        let code = match attributes.get(attribute) {
+            Some(code) => code,
+            None => return Err(format!("Attribute {} not found", attribute)),
+        };
+
+        let code = match std::str::from_utf8(code) {
+            Ok(code) => code,
+            Err(_) => return Err("Failed to parse code".to_string()),
+        };
+
+        Ok(code.to_string())
+    }
+
+    #[derive(Clone)]
+    pub struct AttributeLitF32(pub f32);
+
+    impl FromStr for AttributeLitF32 {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.parse::<f32>() {
+                Ok(value) => Ok(AttributeLitF32(value)),
+                Err(_) => Err("Failed to parse attribute".to_string()),
+            }
+        }
+    }
+
+    impl Into<proc_macro2::TokenStream> for AttributeLitF32 {
+        fn into(self) -> proc_macro2::TokenStream {
+            let literal = proc_macro2::Literal::f32_unsuffixed(self.0);
+
+            quote! { #literal }
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct AttributeLitU32(pub u32);
+
+    impl FromStr for AttributeLitU32 {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.parse() {
+                Ok(value) => Ok(AttributeLitU32(value)),
+                Err(_) => Err("Failed to parse attribute".to_string()),
+            }
+        }
+    }
+
+    impl Into<proc_macro2::TokenStream> for AttributeLitU32 {
+        fn into(self) -> proc_macro2::TokenStream {
+            let literal = proc_macro2::Literal::u32_unsuffixed(self.0);
+
+            quote! { #literal }
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct AttributeLitString(pub String);
+
+    impl FromStr for AttributeLitString {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            Ok(AttributeLitString(s.to_string()))
+        }
+    }
+
+    impl Into<proc_macro2::TokenStream> for AttributeLitString {
+        fn into(self) -> proc_macro2::TokenStream {
+            match self.0.parse() {
+                Ok(stream) => stream,
+                Err(_) => panic!("Failed to parse string"),
+            }
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct AttributeLitBool(pub bool);
+
+    impl FromStr for AttributeLitBool {
+        type Err = String;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.parse() {
+                Ok(value) => Ok(AttributeLitBool(value)),
+                Err(_) => Err("Failed to parse attribute".to_string()),
+            }
+        }
+    }
+
+    impl Into<proc_macro2::TokenStream> for AttributeLitBool {
+        fn into(self) -> proc_macro2::TokenStream {
+            if self.0 {
+                quote! { true }
+            } else {
+                quote! { false }
+            }
+        }
+    }
 }
 
 #[test]
