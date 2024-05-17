@@ -6,3 +6,12 @@ edition = "2021"
 [dependencies]
 parser = { path = "parser" }
 macros = { path = "macros" }
+
+[dev-dependencies]
+egui = "0.22.0"
+eframe = "0.22.0"
+egui_extras = "0.22.0"
+
+
+[[example]]
+name = "simple"

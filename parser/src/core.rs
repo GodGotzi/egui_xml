@@ -7,86 +7,6 @@ use quick_xml::events::attributes::Attributes;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 
-#[derive(Debug)]
-pub struct Form {
-    nodes: Vec<Rc<RefCell<Node>>>,
-}
-
-impl TryFrom<String> for Form {
-    type Error = ();
-
-    fn try_from(xml: String) -> Result<Self, Self::Error> {
-        let mut reader = Reader::from_str(&xml);
-        reader.trim_text(true);
-
-        let mut buf = Vec::new();
-
-        let mut root_starting = false;
-
-        let root: Rc<RefCell<Node>> = Rc::new(RefCell::new(Node::Default {
-            parent: None,
-            children: Vec::new(),
-            attributes: HashMap::new(),
-        }));
-
-        let mut current_node: Rc<RefCell<Node>> = root.clone();
-
-        loop {
-            match reader.read_event_into(&mut buf) {
-                Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
-                // exits the loop when reaching end of file
-                Ok(Event::Eof) => break,
-
-                Ok(Event::Start(region_start)) => {
-                    if !root_starting {
-                        if b"Form" == region_start.name().as_ref() {
-                            root_starting = true;
-                            println!("Root Started");
-                        }
-                    } else {
-                        let attributes = prepare_attributes(region_start.attributes());
-
-                        let node = match region_start.name().as_ref() {
-                            b"Panel" => Rc::new(RefCell::new(Node::Panel {
-                                parent: Some(current_node.clone()),
-                                children: Vec::new(),
-                                attributes,
-                            })),
-                            b"Strip" => Rc::new(RefCell::new(Node::Strip {
-                                parent: Some(current_node.clone()),
-                                children: Vec::new(),
-                                attributes,
-                            })),
-                            _ => todo!(),
-                        };
-
-                        let new_node = current_node.borrow_mut().add_node(node);
-                        current_node = new_node;
-                    }
-                }
-                Ok(Event::End(_)) => {
-                    let parent = current_node.borrow_mut().get_parent();
-
-                    println!("Return to Parent");
-
-                    if parent.is_some() {
-                        current_node = parent.unwrap();
-                    }
-                }
-                _ => (),
-            }
-
-            buf.clear();
-        }
-
-        let root = root.borrow_mut();
-
-        Ok(Form {
-            nodes: root.get_children().clone(),
-        })
-    }
-}
-
 pub enum Node {
     Panel {
         parent: Option<Rc<RefCell<Node>>>,
@@ -146,15 +66,120 @@ impl Node {
         }
     }
 
-    pub fn get_children(&self) -> Vec<Rc<RefCell<Node>>> {
+    pub fn get_children(&self) -> &Vec<Rc<RefCell<Node>>> {
         match self {
-            Node::Panel { children, .. } => children.clone(),
-            Node::UiExecutable { .. } => Vec::new(),
-            Node::Border { children, .. } => children.clone(),
-            Node::Grid { children, .. } => children.clone(),
-            Node::Default { children, .. } => children.clone(),
-            Node::Strip { children, .. } => children.clone(),
+            Node::Panel { children, .. } => &children,
+            Node::UiExecutable { .. } => panic!("No Children!"),
+            Node::Border { children, .. } => &children,
+            Node::Grid { children, .. } => &children,
+            Node::Default { children, .. } => &children,
+            Node::Strip { children, .. } => &children,
         }
+    }
+
+    pub fn get_attributes(&self) -> &HashMap<String, String> {
+        match self {
+            Node::Panel { attributes, .. } => &attributes,
+            Node::UiExecutable { attributes, .. } => &attributes,
+            Node::Border { attributes, .. } => &attributes,
+            Node::Grid { attributes, .. } => &attributes,
+            Node::Default { attributes, .. } => &attributes,
+            Node::Strip { attributes, .. } => &attributes,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Form {
+    #[allow(dead_code)]
+    pub nodes: Vec<Rc<RefCell<Node>>>,
+}
+
+impl TryFrom<String> for Form {
+    type Error = ();
+
+    fn try_from(xml: String) -> Result<Self, Self::Error> {
+        let mut reader = Reader::from_str(&xml);
+        reader.trim_text(true);
+
+        let mut buf = Vec::new();
+
+        let mut root_starting = false;
+
+        let root: Rc<RefCell<Node>> = Rc::new(RefCell::new(Node::Default {
+            parent: None,
+            children: Vec::new(),
+            attributes: HashMap::new(),
+        }));
+
+        let mut current_node: Rc<RefCell<Node>> = root.clone();
+
+        loop {
+            match reader.read_event_into(&mut buf) {
+                Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                // exits the loop when reaching end of file
+                Ok(Event::Eof) => break,
+
+                Ok(Event::Start(region_start)) => {
+                    if !root_starting {
+                        if b"Form" == region_start.name().as_ref() {
+                            root_starting = true;
+                        }
+                    } else {
+                        let attributes = prepare_attributes(region_start.attributes());
+
+                        let node = match region_start.name().as_ref() {
+                            b"Panel" => Rc::new(RefCell::new(Node::Panel {
+                                parent: Some(current_node.clone()),
+                                children: Vec::new(),
+                                attributes,
+                            })),
+                            b"Strip" => Rc::new(RefCell::new(Node::Strip {
+                                parent: Some(current_node.clone()),
+                                children: Vec::new(),
+                                attributes,
+                            })),
+                            b"Border" => Rc::new(RefCell::new(Node::Border {
+                                parent: Some(current_node.clone()),
+                                children: Vec::new(),
+                                attributes,
+                            })),
+                            b"Grid" => Rc::new(RefCell::new(Node::Grid {
+                                parent: Some(current_node.clone()),
+                                children: Vec::new(),
+                                attributes,
+                            })),
+                            b"UiExecutable" => Rc::new(RefCell::new(Node::UiExecutable {
+                                parent: Some(current_node.clone()),
+                                attributes,
+                            })),
+                            _ => {
+                                panic!("Not a Node {:?}", from_utf8(region_start.name().0).unwrap())
+                            }
+                        };
+
+                        let new_node = current_node.borrow_mut().add_node(node);
+                        current_node = new_node;
+                    }
+                }
+                Ok(Event::End(_)) => {
+                    let parent = current_node.borrow_mut().get_parent();
+
+                    if parent.is_some() {
+                        current_node = parent.unwrap();
+                    }
+                }
+                _ => (),
+            }
+
+            buf.clear();
+        }
+
+        let root = root.borrow_mut();
+
+        Ok(Form {
+            nodes: root.get_children().clone(),
+        })
     }
 }
 
@@ -182,14 +207,19 @@ fn test() {
             <Panel pos="exact" arg="100.0">
                 <Strip direction="horizontal">
                     <Panel pos="exact" arg="50.0">
+                        <UiExecutable ident="ui01"></UiExecutable>
+                        <UiExecutable ident="ui02"></UiExecutable>
                     </Panel>
                     <Panel pos="remainder">
+                        <UiExecutable ident="ui11"></UiExecutable>
                     </Panel>
                 </Strip>
             </Panel>
             <Panel pos="remainder">
+                <UiExecutable ident="ui01"></UiExecutable>
             </Panel>
             <Panel pos="relative" arg="0.5">
+                <UiExecutable ident="ui01"></UiExecutable>
             </Panel>
         </Strip>
     </Form>"#;
