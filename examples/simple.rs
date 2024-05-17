@@ -1,6 +1,6 @@
 use eframe::egui;
 use egui::{Rounding, Ui};
-use egui_form::load_layout;
+use egui_xml::load_layout;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
@@ -23,10 +23,12 @@ fn color_background(ui: &mut Ui, color: egui::Color32) {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            let vertical_gap_symetric = 1.25;
+
             load_layout!(
                 <?xml version="1.0" encoding="utf-8"?>
                 <Form>
-                    <Strip direction="north" gap="1.5">
+                    <Strip direction="north" gap="@vertical_gap_symetric">
                         <Panel size="relative" value="0.4">
                             <Strip direction="west">
                                 <Panel size="exact" value="250.0">
@@ -43,7 +45,7 @@ impl eframe::App for MyApp {
                                     color_background(ui, egui::Color32::from_rgb(0, 0, 255));
                                 </Panel>
                                 <Panel size="remainder">
-                                    <Strip direction="north" gap="1.5">
+                                    <Strip direction="north" gap="@vertical_gap_symetric">
                                         <Panel size="relative" value="0.3">
                                             color_background(ui, egui::Color32::from_rgb(0, 255, 255));
                                         </Panel>

@@ -1,5 +1,5 @@
 [package]
-name = "egui_form"
+name = "egui_xml"
 version = "0.1.0"
 edition = "2021"
 
