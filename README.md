@@ -1,4 +1,10 @@
 # egui_xml
+[<img alt="github" src="https://img.shields.io/badge/github-godgotzi/egui_xml-8da0cb?logo=github" height="20">](https://github.com/godgotzi/egui_xml)
+[![Latest Version](https://img.shields.io/crates/v/egui_xml.svg)](https://crates.io/crates/egui_xml)
+[![Documentation](https://docs.rs/egui_xml/badge.svg)](https://docs.rs/egui_xml)
+[![License](https://img.shields.io/crates/l/egui_xml.svg)](https://github.com/godgotzi/egui_xml#license)
+
+---
 
 `egui_xml` is a powerful Rust crate designed to enhance the `egui` library by providing a convenient macro to load user interface layouts from XML files. This crate streamlines the UI development process by allowing developers to define complex layouts in a structured and readable XML format.
 
