@@ -83,3 +83,40 @@ impl std::fmt::Debug for Node {
         Ok(())
     }
 }
+
+mod test {
+
+    #[test]
+    fn test_fmt() {
+        use crate::Form;
+
+        let xml = r#"
+        <Form>
+            <Strip direction="south">
+                <Panel size="relative" value="0.4">
+                    <Strip direction="east">
+                        <Panel size="exact" value="250.0">
+                            if ui.button("Hi I am a button!").clicked() {println!("Button clicked!");}
+                        </Panel>
+                        <Panel size="remainder">
+                            ui.label("Hello from XML!");
+                        </Panel>
+                    </Strip>
+                </Panel>
+                <Panel size="remainder">
+                    ui.label("Hello from XML!");
+                </Panel>
+            </Strip>
+        </Form>
+        "#;
+
+        let form = Form::try_from(xml.to_string()).unwrap();
+
+        let debug_str = format!("{:?}", form)
+            .replace("\n", "")
+            .replace("\t", "")
+            .replace(" ", "");
+
+        println!("{:?}", debug_str);
+    }
+}

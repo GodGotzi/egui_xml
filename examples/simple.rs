@@ -26,7 +26,6 @@ impl eframe::App for MyApp {
             let vertical_gap_symetric = 1.25;
 
             load_layout!(
-                <?xml version="1.0" encoding="utf-8"?>
                 <Form>
                     <Strip direction="north" gap="@vertical_gap_symetric">
                         <Panel size="relative" value="0.4">

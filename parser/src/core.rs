@@ -4,15 +4,15 @@ use std::rc::Rc;
 use std::str::from_utf8;
 
 use quick_xml::events::attributes::Attributes;
-use quick_xml::events::{BytesText, Event};
+use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 
+#[derive()]
 pub enum Node {
     Panel {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
         attributes: HashMap<String, Vec<u8>>,
-        code: String,
     },
     Rust {
         parent: Option<Rc<RefCell<Node>>>,
@@ -22,26 +22,91 @@ pub enum Node {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
         attributes: HashMap<String, Vec<u8>>,
-        code: String,
     },
     Grid {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
         attributes: HashMap<String, Vec<u8>>,
-        code: String,
     },
     Default {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
         attributes: HashMap<String, Vec<u8>>,
-        code: String,
     },
     Strip {
         parent: Option<Rc<RefCell<Node>>>,
         children: Vec<Rc<RefCell<Node>>>,
         attributes: HashMap<String, Vec<u8>>,
-        code: String,
     },
+}
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Node::Panel {
+                    children: children1,
+                    attributes: attributes1,
+                    ..
+                },
+                Node::Panel {
+                    children: children2,
+                    attributes: attributes2,
+                    ..
+                },
+            ) => children1 == children2 && attributes1 == attributes2,
+            (Node::Rust { code: code1, .. }, Node::Rust { code: code2, .. }) => code1 == code2,
+            (
+                Node::Border {
+                    children: children1,
+                    attributes: attributes1,
+                    ..
+                },
+                Node::Border {
+                    children: children2,
+                    attributes: attributes2,
+                    ..
+                },
+            ) => children1 == children2 && attributes1 == attributes2,
+            (
+                Node::Grid {
+                    children: children1,
+                    attributes: attributes1,
+                    ..
+                },
+                Node::Grid {
+                    children: children2,
+                    attributes: attributes2,
+                    ..
+                },
+            ) => children1 == children2 && attributes1 == attributes2,
+            (
+                Node::Default {
+                    children: children1,
+                    attributes: attributes1,
+                    ..
+                },
+                Node::Default {
+                    children: children2,
+                    attributes: attributes2,
+                    ..
+                },
+            ) => children1 == children2 && attributes1 == attributes2,
+            (
+                Node::Strip {
+                    children: children1,
+                    attributes: attributes1,
+                    ..
+                },
+                Node::Strip {
+                    children: children2,
+                    attributes: attributes2,
+                    ..
+                },
+            ) => children1 == children2 && attributes1 == attributes2,
+            _ => false,
+        }
+    }
 }
 
 impl Node {
@@ -58,17 +123,6 @@ impl Node {
         };
 
         node
-    }
-
-    pub fn push_text(&mut self, text: BytesText) {
-        match self {
-            Node::Panel { code, .. } => code.push_str(from_utf8(&text).unwrap()),
-            Node::Rust { code, .. } => code.push_str(from_utf8(&text).unwrap()),
-            Node::Border { code, .. } => code.push_str(from_utf8(&text).unwrap()),
-            Node::Grid { code, .. } => code.push_str(from_utf8(&text).unwrap()),
-            Node::Default { code, .. } => code.push_str(from_utf8(&text).unwrap()),
-            Node::Strip { code, .. } => code.push_str(from_utf8(&text).unwrap()),
-        };
     }
 
     pub fn get_parent(&self) -> Option<Rc<RefCell<Node>>> {
@@ -114,6 +168,18 @@ impl Node {
             Node::Strip { attributes: a, .. } => *a = attributes,
         }
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn get_parent_mut(&mut self) -> &mut Option<Rc<RefCell<Node>>> {
+        match self {
+            Node::Panel { parent, .. } => parent,
+            Node::Rust { parent, .. } => parent,
+            Node::Border { parent, .. } => parent,
+            Node::Grid { parent, .. } => parent,
+            Node::Default { parent, .. } => parent,
+            Node::Strip { parent, .. } => parent,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -121,6 +187,12 @@ pub struct Form {
     #[allow(dead_code)]
     pub nodes: Vec<Rc<RefCell<Node>>>,
     pub attributes: HashMap<String, Vec<u8>>,
+}
+
+impl PartialEq for Form {
+    fn eq(&self, other: &Self) -> bool {
+        self.attributes == other.attributes && self.nodes == other.nodes
+    }
 }
 
 impl TryFrom<String> for Form {
@@ -137,7 +209,6 @@ impl TryFrom<String> for Form {
         let root: Rc<RefCell<Node>> = Rc::new(RefCell::new(Node::Default {
             parent: None,
             children: Vec::new(),
-            code: String::new(),
             attributes: HashMap::new(),
         }));
 
@@ -164,30 +235,26 @@ impl TryFrom<String> for Form {
                             b"Panel" => Rc::new(RefCell::new(Node::Panel {
                                 parent: Some(current_node.clone()),
                                 children: Vec::new(),
-                                code: String::new(),
                                 attributes,
                             })),
                             b"Strip" => Rc::new(RefCell::new(Node::Strip {
                                 parent: Some(current_node.clone()),
                                 children: Vec::new(),
-                                code: String::new(),
                                 attributes,
                             })),
                             b"Border" => Rc::new(RefCell::new(Node::Border {
                                 parent: Some(current_node.clone()),
                                 children: Vec::new(),
-                                code: String::new(),
                                 attributes,
                             })),
                             b"Grid" => Rc::new(RefCell::new(Node::Grid {
                                 parent: Some(current_node.clone()),
                                 children: Vec::new(),
-                                code: String::new(),
                                 attributes,
                             })),
                             b"Rust" => Rc::new(RefCell::new(Node::Rust {
                                 parent: Some(current_node.clone()),
-                                code: String::new(),
+                                code: "".to_string(),
                             })),
                             _ => {
                                 panic!("Not a Node {:?}", from_utf8(region_start.name().0).unwrap())
@@ -200,6 +267,8 @@ impl TryFrom<String> for Form {
                 }
                 Ok(Event::Text(text)) => {
                     let text_str = from_utf8(&text).unwrap();
+
+                    // current_node.borrow_mut().push_text(&text);
 
                     current_node
                         .borrow_mut()
@@ -509,33 +578,129 @@ pub mod attribute {
     }
 }
 
-#[test]
-fn test() {
-    let xml = r#"
-    <?xml version="1.0" encoding="utf-8"?>
-    <Form>
-        <Strip direction="vertical">
-            <Panel pos="exact" arg="100.0">
-                <Strip direction="horizontal">
-                    <Panel pos="exact" arg="50.0">
-                        <UiExecutable ident="ui01"></UiExecutable>
-                        <UiExecutable ident="ui02"></UiExecutable>
-                    </Panel>
-                    <Panel pos="remainder">
-                        <UiExecutable ident="ui11"></UiExecutable>
-                    </Panel>
-                </Strip>
-            </Panel>
-            <Panel pos="remainder">
-                <UiExecutable ident="ui01"></UiExecutable>
-            </Panel>
-            <Panel pos="relative" arg="0.5">
-                <UiExecutable ident="ui01"></UiExecutable>
-            </Panel>
-        </Strip>
-    </Form>"#;
+mod test {
+    #[test]
+    fn test() {
+        use super::{Form, Node};
+        use std::cell::RefCell;
+        use std::collections::HashMap;
+        use std::rc::Rc;
 
-    let form = Form::try_from(xml.to_string()).unwrap();
+        let xml = r#"
+        <Form>
+            <Strip direction="south">
+                <Panel size="relative" value="0.4">
+                    <Strip direction="east">
+                        <Panel size="exact" value="250.0">
+                            if ui.button("Hi I am a button!").clicked() {println!("Button clicked!");}
+                        </Panel>
+                        <Panel size="remainder">
+                            ui.label("Hello from XML!");
+                        </Panel>
+                    </Strip>
+                </Panel>
+                <Panel size="remainder">
+                    ui.label("Hello from XML!");
+                </Panel>
+            </Strip>
+        </Form>
+        "#;
 
-    println!("{:?}", form);
+        let form = Form::try_from(xml.to_string()).unwrap();
+
+        let root = Rc::new(RefCell::new(Node::Default {
+            parent: None,
+            children: vec![],
+            attributes: HashMap::new(),
+        }));
+
+        let strip = Rc::new(RefCell::new(Node::Strip {
+            parent: None,
+            children: vec![
+                Rc::new(RefCell::new(Node::Panel {
+                    parent: None,
+                    children: vec![Rc::new(RefCell::new(Node::Strip {
+                        parent: None,
+                        children: vec![
+                            Rc::new(RefCell::new(Node::Panel {
+                                parent: None,
+                                children: vec![Rc::new(RefCell::new(Node::Rust {
+                                    parent: None,
+                                    code: "if ui.button(\"Hi I am a button!\").clicked() {println!(\"Button clicked!\");}"
+                                        .to_string(),
+                                }))],
+                                attributes: {
+                                    let mut map = HashMap::new();
+                                    map.insert("size".to_string(), "exact".as_bytes().to_vec());
+                                    map.insert("value".to_string(), "250.0".as_bytes().to_vec());
+                                    map
+                                },
+                            })),
+                            Rc::new(RefCell::new(Node::Panel {
+                                parent: None,
+                                children: vec![Rc::new(RefCell::new(Node::Rust {
+                                    parent: None,
+                                    code: "ui.label(\"Hello from XML!\");".to_string(),
+                                }))],
+                                attributes: {
+                                    let mut map = HashMap::new();
+                                    map.insert("size".to_string(), "remainder".as_bytes().to_vec());
+                                    map
+                                },
+                            })),
+                        ],
+                        attributes: {
+                            let mut map = HashMap::new();
+                            map.insert("direction".to_string(), "east".as_bytes().to_vec());
+                            map
+                        },
+                    }))],
+                    attributes: {
+                        let mut map = HashMap::new();
+                        map.insert("size".to_string(), "relative".as_bytes().to_vec());
+                        map.insert("value".to_string(), "0.4".as_bytes().to_vec());
+                        map
+                    },
+                })),
+                Rc::new(RefCell::new(Node::Panel {
+                    parent: None,
+                    children: vec![Rc::new(RefCell::new(Node::Rust {
+                        parent: None,
+                        code: "ui.label(\"Hello from XML!\");".to_string(),
+                    }))],
+                    attributes: {
+                        let mut map = HashMap::new();
+                        map.insert("size".to_string(), "remainder".as_bytes().to_vec());
+                        map
+                    },
+                })),
+            ],
+            attributes: {
+                let mut map = HashMap::new();
+                map.insert("direction".to_string(), "south".as_bytes().to_vec());
+                map
+            },
+        }));
+
+        fn set_parent_recursive(node: Rc<RefCell<Node>>, parent: Option<Rc<RefCell<Node>>>) {
+            *node.borrow_mut().get_parent_mut() = parent;
+
+            if let Some(children) = node.borrow_mut().get_children() {
+                children.iter().for_each(|child| {
+                    set_parent_recursive(child.clone(), Some(node.clone()));
+                });
+            }
+        }
+
+        set_parent_recursive(strip.clone(), None);
+
+        root.borrow_mut().add_node(strip);
+
+        let eq_form = Form {
+            nodes: root.borrow().get_children().as_ref().unwrap().to_vec(),
+            attributes: root.borrow().get_attributes().unwrap().clone(),
+        };
+
+        assert_eq!(form, eq_form);
+    }
 }
