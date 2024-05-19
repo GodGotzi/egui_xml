@@ -295,6 +295,17 @@ pub mod attribute {
         DynamicRust(proc_macro2::TokenStream),
     }
 
+    impl<T: Into<proc_macro2::TokenStream> + Clone> Into<proc_macro2::TokenStream>
+        for HybridAttribute<T>
+    {
+        fn into(self) -> proc_macro2::TokenStream {
+            match self {
+                HybridAttribute::Literal(value) => value.into(),
+                HybridAttribute::DynamicRust(stream) => stream,
+            }
+        }
+    }
+
     pub fn parse_rust_attribute(
         attributes: &HashMap<String, Vec<u8>>,
         attribute: &str,
@@ -461,20 +472,20 @@ pub mod attribute {
     }
 
     #[derive(Clone)]
-    pub struct AttributeLitF32(pub f32);
+    pub struct AttributeF32(pub f32);
 
-    impl FromStr for AttributeLitF32 {
+    impl FromStr for AttributeF32 {
         type Err = String;
 
         fn from_str(s: &str) -> Result<Self, Self::Err> {
             match s.parse::<f32>() {
-                Ok(value) => Ok(AttributeLitF32(value)),
+                Ok(value) => Ok(AttributeF32(value)),
                 Err(_) => Err("Failed to parse attribute".to_string()),
             }
         }
     }
 
-    impl Into<proc_macro2::TokenStream> for AttributeLitF32 {
+    impl Into<proc_macro2::TokenStream> for AttributeF32 {
         fn into(self) -> proc_macro2::TokenStream {
             let literal = proc_macro2::Literal::f32_unsuffixed(self.0);
 
@@ -483,20 +494,20 @@ pub mod attribute {
     }
 
     #[derive(Clone)]
-    pub struct AttributeLitU32(pub u32);
+    pub struct AttributeU32(pub u32);
 
-    impl FromStr for AttributeLitU32 {
+    impl FromStr for AttributeU32 {
         type Err = String;
 
         fn from_str(s: &str) -> Result<Self, Self::Err> {
             match s.parse() {
-                Ok(value) => Ok(AttributeLitU32(value)),
+                Ok(value) => Ok(AttributeU32(value)),
                 Err(_) => Err("Failed to parse attribute".to_string()),
             }
         }
     }
 
-    impl Into<proc_macro2::TokenStream> for AttributeLitU32 {
+    impl Into<proc_macro2::TokenStream> for AttributeU32 {
         fn into(self) -> proc_macro2::TokenStream {
             let literal = proc_macro2::Literal::u32_unsuffixed(self.0);
 
@@ -505,17 +516,17 @@ pub mod attribute {
     }
 
     #[derive(Clone)]
-    pub struct AttributeLitString(pub String);
+    pub struct AttributeString(pub String);
 
-    impl FromStr for AttributeLitString {
+    impl FromStr for AttributeString {
         type Err = String;
 
         fn from_str(s: &str) -> Result<Self, Self::Err> {
-            Ok(AttributeLitString(s.to_string()))
+            Ok(AttributeString(s.to_string()))
         }
     }
 
-    impl Into<proc_macro2::TokenStream> for AttributeLitString {
+    impl Into<proc_macro2::TokenStream> for AttributeString {
         fn into(self) -> proc_macro2::TokenStream {
             match self.0.parse() {
                 Ok(stream) => stream,
@@ -525,20 +536,20 @@ pub mod attribute {
     }
 
     #[derive(Clone)]
-    pub struct AttributeLitBool(pub bool);
+    pub struct AttributeBool(pub bool);
 
-    impl FromStr for AttributeLitBool {
+    impl FromStr for AttributeBool {
         type Err = String;
 
         fn from_str(s: &str) -> Result<Self, Self::Err> {
             match s.parse() {
-                Ok(value) => Ok(AttributeLitBool(value)),
+                Ok(value) => Ok(AttributeBool(value)),
                 Err(_) => Err("Failed to parse attribute".to_string()),
             }
         }
     }
 
-    impl Into<proc_macro2::TokenStream> for AttributeLitBool {
+    impl Into<proc_macro2::TokenStream> for AttributeBool {
         fn into(self) -> proc_macro2::TokenStream {
             if self.0 {
                 quote! { true }
@@ -547,12 +558,15 @@ pub mod attribute {
             }
         }
     }
+
+    #[derive(Clone)]
+    pub struct AttributeSizeType(pub String);
 }
 
 mod test {
     #[test]
     fn test() {
-        use super::{XMLRoot, Node};
+        use super::{Node, XMLRoot};
         use std::cell::RefCell;
         use std::collections::HashMap;
         use std::rc::Rc;

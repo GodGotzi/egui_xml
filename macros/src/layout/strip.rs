@@ -6,9 +6,7 @@ use std::{
 };
 
 use parser::{
-    attribute::{
-        parse_optional_hybrid_attribute, AttributeLitBool, AttributeLitF32, HybridAttribute,
-    },
+    attribute::{parse_optional_hybrid_attribute, AttributeBool, AttributeF32, HybridAttribute},
     Node,
 };
 use proc_macro2::Span;
@@ -58,31 +56,30 @@ enum StripDirection {
     TopDown,
 }
 
-struct StripInfo {
+struct StripBlueprint {
     direction: StripDirection,
 
     // Rust Token Stream
-    gap: Option<HybridAttribute<AttributeLitF32>>,
-    separator: HybridAttribute<AttributeLitBool>,
+    gap: Option<HybridAttribute<AttributeF32>>,
+    separator: HybridAttribute<AttributeBool>,
     ui: proc_macro2::TokenStream,
 }
 
-impl TryFrom<&HashMap<String, Vec<u8>>> for StripInfo {
+impl TryFrom<&HashMap<String, Vec<u8>>> for StripBlueprint {
     type Error = String;
 
     fn try_from(attributes: &HashMap<String, Vec<u8>>) -> Result<Self, Self::Error> {
         let direction = StripDirection::from_str(&parse_string(attributes, "direction")?)
             .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?;
 
-        let gap = parse_optional_hybrid_attribute::<AttributeLitF32>(attributes, "gap")?;
+        let gap = parse_optional_hybrid_attribute::<AttributeF32>(attributes, "gap")?;
 
-        let separator =
-            parse_optional_hybrid_attribute::<AttributeLitBool>(attributes, "separator")?
-                .unwrap_or(HybridAttribute::Literal(AttributeLitBool(false)));
+        let separator = parse_optional_hybrid_attribute::<AttributeBool>(attributes, "separator")?
+            .unwrap_or(HybridAttribute::Literal(AttributeBool(false)));
 
         let ui = parse_optional_rust_attribute(attributes, "ui")?.unwrap_or(quote! { ui });
 
-        Ok(StripInfo {
+        Ok(StripBlueprint {
             direction,
             gap,
             separator,
@@ -91,23 +88,36 @@ impl TryFrom<&HashMap<String, Vec<u8>>> for StripInfo {
     }
 }
 
-#[derive(EnumString)]
-enum StripChildSize {
-    #[strum(serialize = "Remainder", serialize = "remainder")]
+#[derive(PartialEq, Eq, EnumString)]
+enum SizeType {
+    #[strum(serialize = "Remainder", serialize = "remainder", serialize = "rem")]
     Remainder,
-    #[strum(serialize = "Exact", serialize = "exact")]
-    Exact(proc_macro2::TokenStream),
-    #[strum(serialize = "Initial", serialize = "initial")]
-    Initial(proc_macro2::TokenStream),
-    #[strum(serialize = "Relative", serialize = "relative")]
-    Relative(proc_macro2::TokenStream),
+    #[strum(serialize = "Exact", serialize = "exact", serialize = "ex")]
+    Exact,
+    #[strum(serialize = "Relative", serialize = "relative", serialize = "rel")]
+    Relative,
 }
 
-struct StripChildInfo {
-    size: StripChildSize,
+pub enum SizeBlueprint {
+    Remainder {
+        min: Option<HybridAttribute<AttributeF32>>,
+        max: Option<HybridAttribute<AttributeF32>>,
+    },
+    Exact {
+        value: HybridAttribute<AttributeF32>,
+
+        min: Option<HybridAttribute<AttributeF32>>,
+        max: Option<HybridAttribute<AttributeF32>>,
+    },
+    Relative {
+        value: HybridAttribute<AttributeF32>,
+
+        min: Option<HybridAttribute<AttributeF32>>,
+        max: Option<HybridAttribute<AttributeF32>>,
+    },
 }
 
-impl TryFrom<&HashMap<String, Vec<u8>>> for StripChildInfo {
+impl TryFrom<&HashMap<String, Vec<u8>>> for SizeBlueprint {
     type Error = String;
 
     fn try_from(attributes: &HashMap<String, Vec<u8>>) -> Result<Self, Self::Error> {
@@ -116,38 +126,106 @@ impl TryFrom<&HashMap<String, Vec<u8>>> for StripChildInfo {
             None => return Err("Size Attribute doesn't exist!".to_string()),
         };
 
-        let child_size = StripChildSize::from_str(size)
+        let size_type = SizeType::from_str(size)
             .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?;
 
-        return match child_size {
-            StripChildSize::Remainder => {
-                return Ok(StripChildInfo {
-                    size: StripChildSize::Remainder,
-                });
+        let min = parse_optional_hybrid_attribute::<AttributeF32>(attributes, "min")?;
+
+        let max = parse_optional_hybrid_attribute::<AttributeF32>(attributes, "max")?;
+
+        return match size_type {
+            SizeType::Remainder => {
+                return Ok(SizeBlueprint::Remainder { min, max });
             }
             _ => {
-                let hybrid_attribute =
-                    parse_hybrid_attribute::<AttributeLitF32>(attributes, "value")?;
+                let hybrid_attribute = parse_hybrid_attribute::<AttributeF32>(attributes, "value")?;
 
-                let stream = match hybrid_attribute {
-                    HybridAttribute::Literal(value) => value.into(),
-                    HybridAttribute::DynamicRust(stream) => stream,
-                };
-
-                match child_size {
-                    StripChildSize::Exact(_) => Ok(StripChildInfo {
-                        size: StripChildSize::Exact(stream),
+                match size_type {
+                    SizeType::Exact => Ok(SizeBlueprint::Exact {
+                        value: hybrid_attribute,
+                        min,
+                        max,
                     }),
-                    StripChildSize::Initial(_) => Ok(StripChildInfo {
-                        size: StripChildSize::Initial(stream),
-                    }),
-                    StripChildSize::Relative(_) => Ok(StripChildInfo {
-                        size: StripChildSize::Relative(stream),
+                    SizeType::Relative => Ok(SizeBlueprint::Relative {
+                        value: hybrid_attribute,
+                        min,
+                        max,
                     }),
                     _ => panic!("Why you here!"),
                 }
             }
         };
+    }
+}
+
+impl Into<proc_macro2::TokenStream> for SizeBlueprint {
+    fn into(self) -> proc_macro2::TokenStream {
+        let min_fn = proc_macro2::Ident::new("at_least", Span::call_site());
+        let max_fn = proc_macro2::Ident::new("at_most", Span::call_site());
+
+        match self {
+            SizeBlueprint::Remainder { min, max } => {
+                let mut expanded = quote! { egui_extras::Size::remainder() };
+
+                if let Some(min) = min {
+                    let stream: proc_macro2::TokenStream = min.into();
+
+                    expanded.append_all(quote! {.#min_fn(#stream)});
+                }
+
+                if let Some(max) = max {
+                    let stream: proc_macro2::TokenStream = max.into();
+
+                    expanded.append_all(quote! {.#max_fn(#stream)});
+                }
+
+                quote! {
+                    macro_strip_builder = macro_strip_builder.size(#expanded);
+                }
+            }
+            SizeBlueprint::Exact { value, min, max } => {
+                let stream: proc_macro2::TokenStream = value.into();
+
+                let mut expanded = quote! { egui_extras::Size::exact(#stream) };
+
+                if let Some(min) = min {
+                    let stream: proc_macro2::TokenStream = min.into();
+
+                    expanded.append_all(quote! {.#min_fn(#stream)});
+                }
+
+                if let Some(max) = max {
+                    let stream: proc_macro2::TokenStream = max.into();
+
+                    expanded.append_all(quote! {.#max_fn(#stream)});
+                }
+
+                quote! {
+                    macro_strip_builder = macro_strip_builder.size(#expanded);
+                }
+            }
+            SizeBlueprint::Relative { value, min, max } => {
+                let stream: proc_macro2::TokenStream = value.into();
+
+                let mut expanded = quote! { egui_extras::Size::relative(#stream) };
+
+                if let Some(min) = min {
+                    let stream: proc_macro2::TokenStream = min.into();
+
+                    expanded.append_all(quote! {.#min_fn(#stream)});
+                }
+
+                if let Some(max) = max {
+                    let stream: proc_macro2::TokenStream = max.into();
+
+                    expanded.append_all(quote! {.#max_fn(#stream)});
+                }
+
+                quote! {
+                    macro_strip_builder = macro_strip_builder.size(#expanded);
+                }
+            }
+        }
     }
 }
 
@@ -161,7 +239,7 @@ pub fn expand_strip(
     let attributes_borrow = strip.borrow();
     let attributes = attributes_borrow.get_attributes().unwrap();
 
-    let info: StripInfo = attributes.try_into()?;
+    let info: StripBlueprint = attributes.try_into()?;
 
     let ui_var = info.ui;
 
@@ -178,41 +256,12 @@ pub fn expand_strip(
     };
 
     for (index, child) in iter.iter().enumerate() {
-        let child_info: StripChildInfo = match child.borrow().get_attributes() {
-            Some(child_info) => child_info.try_into()?,
+        let child_blueprint: SizeBlueprint = match child.borrow().get_attributes() {
+            Some(attributes) => attributes.try_into()?,
             None => return Err("No Rust allowed here!".to_string()),
         };
 
-        let size_expanded = match child_info.size {
-            StripChildSize::Remainder => {
-                let size_fn = proc_macro2::Ident::new("remainder", Span::call_site());
-
-                quote! {
-                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn());
-                }
-            }
-            StripChildSize::Exact(stream) => {
-                let size_fn = proc_macro2::Ident::new("exact", Span::call_site());
-
-                quote! {
-                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#stream));
-                }
-            }
-            StripChildSize::Initial(stream) => {
-                let size_fn = proc_macro2::Ident::new("initial", Span::call_site());
-
-                quote! {
-                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#stream));
-                }
-            }
-            StripChildSize::Relative(stream) => {
-                let size_fn = proc_macro2::Ident::new("relative", Span::call_site());
-
-                quote! {
-                    macro_strip_builder = macro_strip_builder.size(egui_extras::Size::#size_fn(#stream));
-                }
-            }
-        };
+        let size_expanded: proc_macro2::TokenStream = child_blueprint.into();
 
         expanded.append_all(size_expanded);
 
