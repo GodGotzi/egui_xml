@@ -158,17 +158,6 @@ impl Node {
         }
     }
 
-    fn set_attributes(&mut self, attributes: HashMap<String, Vec<u8>>) {
-        match self {
-            Node::Panel { attributes: a, .. } => *a = attributes,
-            Node::Rust { .. } => (),
-            Node::Border { attributes: a, .. } => *a = attributes,
-            Node::Grid { attributes: a, .. } => *a = attributes,
-            Node::Default { attributes: a, .. } => *a = attributes,
-            Node::Strip { attributes: a, .. } => *a = attributes,
-        }
-    }
-
     #[allow(dead_code)]
     pub(crate) fn get_parent_mut(&mut self) -> &mut Option<Rc<RefCell<Node>>> {
         match self {
@@ -183,28 +172,24 @@ impl Node {
 }
 
 #[derive(Debug)]
-pub struct Form {
-    #[allow(dead_code)]
-    pub nodes: Vec<Rc<RefCell<Node>>>,
-    pub attributes: HashMap<String, Vec<u8>>,
+pub struct XMLRoot {
+    pub root: Rc<RefCell<Node>>,
 }
 
-impl PartialEq for Form {
+impl PartialEq for XMLRoot {
     fn eq(&self, other: &Self) -> bool {
-        self.attributes == other.attributes && self.nodes == other.nodes
+        self.root == other.root
     }
 }
 
-impl TryFrom<String> for Form {
-    type Error = ();
+impl TryFrom<String> for XMLRoot {
+    type Error = String;
 
     fn try_from(xml: String) -> Result<Self, Self::Error> {
         let mut reader = Reader::from_str(&xml);
         reader.trim_text(true);
 
         let mut buf = Vec::new();
-
-        let mut root_starting = false;
 
         let root: Rc<RefCell<Node>> = Rc::new(RefCell::new(Node::Default {
             parent: None,
@@ -221,49 +206,40 @@ impl TryFrom<String> for Form {
                 Ok(Event::Eof) => break,
 
                 Ok(Event::Start(region_start)) => {
-                    if !root_starting {
-                        if b"Form" == region_start.name().as_ref() {
-                            let attributes = prepare_attributes(region_start.attributes());
-                            root.borrow_mut().set_attributes(attributes);
+                    let attributes = prepare_attributes(region_start.attributes());
 
-                            root_starting = true;
+                    let node = match region_start.name().as_ref() {
+                        b"Panel" => Rc::new(RefCell::new(Node::Panel {
+                            parent: Some(current_node.clone()),
+                            children: Vec::new(),
+                            attributes,
+                        })),
+                        b"Strip" => Rc::new(RefCell::new(Node::Strip {
+                            parent: Some(current_node.clone()),
+                            children: Vec::new(),
+                            attributes,
+                        })),
+                        b"Border" => Rc::new(RefCell::new(Node::Border {
+                            parent: Some(current_node.clone()),
+                            children: Vec::new(),
+                            attributes,
+                        })),
+                        b"Grid" => Rc::new(RefCell::new(Node::Grid {
+                            parent: Some(current_node.clone()),
+                            children: Vec::new(),
+                            attributes,
+                        })),
+                        b"Rust" => Rc::new(RefCell::new(Node::Rust {
+                            parent: Some(current_node.clone()),
+                            code: "".to_string(),
+                        })),
+                        _ => {
+                            panic!("Not a Node {:?}", from_utf8(region_start.name().0).unwrap())
                         }
-                    } else {
-                        let attributes = prepare_attributes(region_start.attributes());
+                    };
 
-                        let node = match region_start.name().as_ref() {
-                            b"Panel" => Rc::new(RefCell::new(Node::Panel {
-                                parent: Some(current_node.clone()),
-                                children: Vec::new(),
-                                attributes,
-                            })),
-                            b"Strip" => Rc::new(RefCell::new(Node::Strip {
-                                parent: Some(current_node.clone()),
-                                children: Vec::new(),
-                                attributes,
-                            })),
-                            b"Border" => Rc::new(RefCell::new(Node::Border {
-                                parent: Some(current_node.clone()),
-                                children: Vec::new(),
-                                attributes,
-                            })),
-                            b"Grid" => Rc::new(RefCell::new(Node::Grid {
-                                parent: Some(current_node.clone()),
-                                children: Vec::new(),
-                                attributes,
-                            })),
-                            b"Rust" => Rc::new(RefCell::new(Node::Rust {
-                                parent: Some(current_node.clone()),
-                                code: "".to_string(),
-                            })),
-                            _ => {
-                                panic!("Not a Node {:?}", from_utf8(region_start.name().0).unwrap())
-                            }
-                        };
-
-                        let new_node = current_node.borrow_mut().add_node(node);
-                        current_node = new_node;
-                    }
+                    let new_node = current_node.borrow_mut().add_node(node);
+                    current_node = new_node;
                 }
                 Ok(Event::Text(text)) => {
                     let text_str = from_utf8(&text).unwrap();
@@ -290,12 +266,7 @@ impl TryFrom<String> for Form {
             buf.clear();
         }
 
-        let root = root.borrow_mut();
-
-        Ok(Form {
-            nodes: root.get_children().unwrap().clone(),
-            attributes: root.get_attributes().unwrap().clone(),
-        })
+        Ok(XMLRoot { root })
     }
 }
 
@@ -581,7 +552,7 @@ pub mod attribute {
 mod test {
     #[test]
     fn test() {
-        use super::{Form, Node};
+        use super::{XMLRoot, Node};
         use std::cell::RefCell;
         use std::collections::HashMap;
         use std::rc::Rc;
@@ -606,7 +577,7 @@ mod test {
         </Form>
         "#;
 
-        let form = Form::try_from(xml.to_string()).unwrap();
+        let form = XMLRoot::try_from(xml.to_string()).unwrap();
 
         let root = Rc::new(RefCell::new(Node::Default {
             parent: None,
@@ -696,10 +667,7 @@ mod test {
 
         root.borrow_mut().add_node(strip);
 
-        let eq_form = Form {
-            nodes: root.borrow().get_children().as_ref().unwrap().to_vec(),
-            attributes: root.borrow().get_attributes().unwrap().clone(),
-        };
+        let eq_form = XMLRoot { root };
 
         assert_eq!(form, eq_form);
     }

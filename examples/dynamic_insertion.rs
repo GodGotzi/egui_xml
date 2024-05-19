@@ -9,15 +9,27 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "My egui App",
         options,
-        Box::new(|_cc| Box::<MyApp>::new(MyApp)),
+        Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
 
-struct MyApp;
+struct MyApp {
+    panel_width: u32,
+}
+
+impl Default for MyApp {
+    fn default() -> Self {
+        Self { panel_width: 250 }
+    }
+}
 
 fn color_background(ui: &mut Ui, color: egui::Color32) {
     ui.painter()
         .rect_filled(ui.available_rect_before_wrap(), Rounding::same(5.0), color);
+}
+
+fn show_slider_panel(ui: &mut Ui, panel_width: &mut u32) {
+    ui.add(egui::Slider::new(panel_width, 0..=500).text("Width"));
 }
 
 impl eframe::App for MyApp {
@@ -25,10 +37,10 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             load_layout!(
                 <Strip direction="west">
-                    <Panel size="relative" value="0.3">
-                        color_background(ui, egui::Color32::from_rgb(0, 0, 255));
+                    <Panel size="remainder" min="50.0" max="@f32::MAX">
+                        show_slider_panel(ui, &mut self.panel_width);
                     </Panel>
-                    <Panel size="remainder">
+                    <Panel size="exact" value="@self.panel_width as f32">
                         <Strip direction="north">
                             <Panel size="relative" value="0.3">
                                 color_background(ui, egui::Color32::from_rgb(0, 255, 255));

@@ -88,7 +88,7 @@ mod test {
 
     #[test]
     fn test_fmt() {
-        use crate::Form;
+        use crate::XMLRoot;
 
         let xml = r#"
         <Form>
@@ -110,7 +110,7 @@ mod test {
         </Form>
         "#;
 
-        let form = Form::try_from(xml.to_string()).unwrap();
+        let form = XMLRoot::try_from(xml.to_string()).unwrap();
 
         let debug_str = format!("{:?}", form)
             .replace("\n", "")

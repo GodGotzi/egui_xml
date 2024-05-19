@@ -1,20 +1,60 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Form>
-    <Strip direction="south">
+<Strip direction="north" gap="@vertical_gap_symetric">
+    <Strip direction="north" gap="@vertical_gap_symetric" size="relative" value="0.5">
         <Panel size="relative" value="0.4">
-            <Strip direction="east">
+            <Strip direction="west">
                 <Panel size="exact" value="250.0">
-                    if ui.button("Hi I am a button!").clicked() {
-                        println!("Button clicked!");
-                    }
+                    color_background(ui, egui::Color32::from_rgb(255, 255, 0));
                 </Panel>
                 <Panel size="remainder">
-                    ui.label("Hello from XML!");
+                    color_background(ui, egui::Color32::from_rgb(255, 0, 0));
                 </Panel>
             </Strip>
         </Panel>
         <Panel size="remainder">
-            ui.label("Hello from XML!");
+            <Strip direction="west">
+                <Panel size="relative" value="0.3">
+                    color_background(ui, egui::Color32::from_rgb(0, 0, 255));
+                </Panel>
+                <Panel size="remainder">
+                    <Strip direction="north" gap="@vertical_gap_symetric">
+                        <Panel size="relative" value="0.3">
+                            color_background(ui, egui::Color32::from_rgb(0, 255, 255));
+                        </Panel>
+                        <Panel size="remainder">
+                            color_background(ui, egui::Color32::from_rgb(255, 0, 255));
+                        </Panel>
+                    </Strip>
+                </Panel>
+            </Strip>
         </Panel>
     </Strip>
-</Form>
+    <Strip direction="north" gap="@vertical_gap_symetric" size="remainder">
+        <Panel size="relative" value="0.4">
+            <Strip direction="west">
+                <Panel size="exact" value="250.0">
+                    color_background(ui, egui::Color32::from_rgb(255, 255, 0));
+                </Panel>
+                <Panel size="remainder">
+                    color_background(ui, egui::Color32::from_rgb(255, 0, 0));
+                </Panel>
+            </Strip>
+        </Panel>
+        <Panel size="remainder">
+            <Strip direction="west">
+                <Panel size="relative" value="0.3">
+                    color_background(ui, egui::Color32::from_rgb(0, 0, 255));
+                </Panel>
+                <Panel size="remainder">
+                    <Strip direction="north" gap="@vertical_gap_symetric">
+                        <Panel size="relative" value="0.3">
+                            color_background(ui, egui::Color32::from_rgb(0, 255, 255));
+                        </Panel>
+                        <Panel size="remainder">
+                            color_background(ui, egui::Color32::from_rgb(255, 0, 255));
+                        </Panel>
+                    </Strip>
+                </Panel>
+            </Strip>
+        </Panel>
+    </Strip>
+</Strip>
