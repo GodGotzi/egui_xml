@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-parser = { path = "parser" }
-macros = { path = "macros" }
+parser = { version = "*", path = "parser" }
+macros = { version = "*", path = "macros" }
 egui_extras = "0.27"
 
 [dev-dependencies]
