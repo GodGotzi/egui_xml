@@ -1,3 +1,30 @@
+//! `load_layout!` macro for loading layout from XML for egui
+//!
+//! The `load_layout!` macro allows for loading layout configurations from XML for use with the egui GUI framework. It takes an XML representation of the layout structure and generates Rust code to construct the layout within an egui UI.
+//!
+//! # Example
+//!
+//! ```rust
+//! # use egui_macros::load_layout;
+//! let layout_code = load_layout!(
+//!     <Strip direction="west">
+//!         <Panel size="relative" value="0.3">
+//!             color_background(ui, egui::Color32::from_rgb(0, 0, 255));
+//!         </Panel>
+//!         <Panel size="remainder">
+//!             <Strip direction="north">
+//!                 <Panel size="relative" value="0.3">
+//!                     color_background(ui, egui::Color32::from_rgb(0, 255, 255));
+//!                 </Panel>
+//!                 <Panel size="remainder">
+//!                     color_background(ui, egui::Color32::from_rgb(255, 0, 255));
+//!                 </Panel>
+//!             </Strip>
+//!         </Panel>
+//!     </Strip>
+//! );
+//! ```
+
 extern crate proc_macro;
 
 use std::{cell::RefCell, rc::Rc};
@@ -41,6 +68,31 @@ fn expand_node(
     }
 }
 
+/// Macro for loading layout from XML.
+///
+/// This macro parses an XML layout representation and generates Rust code to construct the layout within an egui UI.
+///
+/// # Example
+///
+/// ```rust
+/// load_layout!(
+///     <Strip direction="west">
+///         <Panel size="relative" value="0.3">
+///             color_background(ui, egui::Color32::from_rgb(0, 0, 255));
+///         </Panel>
+///         <Panel size="remainder">
+///             <Strip direction="north">
+///                 <Panel size="relative" value="0.3">
+///                     color_background(ui, egui::Color32::from_rgb(0, 255, 255));
+///                 </Panel>
+///                 <Panel size="remainder">
+///                     color_background(ui, egui::Color32::from_rgb(255, 0, 255));
+///                 </Panel>
+///             </Strip>
+///         </Panel>
+///     </Strip>
+/// );
+/// ```
 #[proc_macro]
 pub fn load_layout(input: TokenStream) -> TokenStream {
     let xml = input.to_string();
@@ -60,6 +112,15 @@ pub fn load_layout(input: TokenStream) -> TokenStream {
     expanded.into()
 }
 
+/// Macro for loading layout from a file.
+///
+/// This macro reads the content of the specified file and passes it to the `load_layout` macro for parsing and code generation.
+///
+/// # Example
+///
+/// ```rust
+/// load_layout_file!("layout.xml");
+/// ```
 #[proc_macro]
 pub fn load_layout_file(input: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree

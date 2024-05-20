@@ -45,42 +45,22 @@ fn color_background(ui: &mut Ui, color: egui::Color32) {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            let dynamic_x = 5.0;
-            let dynamic_if_separator = true;
-            
             load_layout!(
-                <?xml version="1.0" encoding="utf-8"?>
-                <Form>
-                    <Strip direction="north" gap="@dynamic_x" separator="@dynamic_if_separator">
-                        <Panel size="relative" value="0.4">
-                            <Strip direction="west">
-                                <Panel size="exact" value="250.0">
-                                    color_background(ui, egui::Color32::from_rgb(255, 255, 0));
-                                </Panel>
-                                <Panel size="remainder">
-                                    color_background(ui, egui::Color32::from_rgb(255, 0, 0));
-                                </Panel>
-                            </Strip>
-                        </Panel>
-                        <Panel size="remainder">
-                            <Strip direction="west">
-                                <Panel size="relative" value="0.3">
-                                    color_background(ui, egui::Color32::from_rgb(0, 0, 255));
-                                </Panel>
-                                <Panel size="remainder">
-                                    <Strip direction="north" gap="1.5">
-                                        <Panel size="relative" value="0.3">
-                                            color_background(ui, egui::Color32::from_rgb(0, 255, 255));
-                                        </Panel>
-                                        <Panel size="remainder">
-                                            color_background(ui, egui::Color32::from_rgb(255, 0, 255));
-                                        </Panel>
-                                    </Strip>
-                                </Panel>
-                            </Strip>
-                        </Panel>
-                    </Strip>
-                </Form>
+                <Strip direction="west">
+                    <Panel size="relative" value="0.3">
+                        color_background(ui, egui::Color32::from_rgb(0, 0, 255));
+                    </Panel>
+                    <Panel size="remainder">
+                        <Strip direction="north">
+                            <Panel size="relative" value="0.3">
+                                color_background(ui, egui::Color32::from_rgb(0, 255, 255));
+                            </Panel>
+                            <Panel size="remainder">
+                                color_background(ui, egui::Color32::from_rgb(255, 0, 255));
+                            </Panel>
+                        </Strip>
+                    </Panel>
+                </Strip>
             );
         });
     }
@@ -93,63 +73,38 @@ impl eframe::App for MyApp {
 use eframe::egui;
 use egui::{Rounding, Ui};
 use egui_xml::load_layout;
+
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
         ..Default::default()
     };
     eframe::run_native("My egui App", options, Box::new(|_cc| Box::<MyApp>::new(MyApp)))
 }
+
 struct MyApp;
+
 fn color_background(ui: &mut Ui, color: egui::Color32) {
     ui.painter()
         .rect_filled(ui.available_rect_before_wrap(), Rounding::same(5.0), color);
 }
+
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default()
             .show(
                 ctx,
                 |ui| {
-                    let dynamic_x = 5.0;
-                    let dynamic_if_separator = true;
                     let mut macro_strip_builder = egui_extras::StripBuilder::new(ui);
                     macro_strip_builder = macro_strip_builder
-                        .size(egui_extras::Size::relative(0.4));
-                    macro_strip_builder = macro_strip_builder
-                        .size(egui_extras::Size::exact(dynamic_x));
+                        .size(egui_extras::Size::relative(0.3));
                     macro_strip_builder = macro_strip_builder
                         .size(egui_extras::Size::remainder());
                     let macro_strip_response = macro_strip_builder
-                        .vertical(|mut strip| {
+                        .horizontal(|mut strip| {
                             strip
                                 .cell(|ui| {
-                                    let mut macro_strip_builder = egui_extras::StripBuilder::new(
-                                        ui,
-                                    );
-                                    macro_strip_builder = macro_strip_builder
-                                        .size(egui_extras::Size::exact(250.0));
-                                    macro_strip_builder = macro_strip_builder
-                                        .size(egui_extras::Size::remainder());
-                                    let macro_strip_response = macro_strip_builder
-                                        .horizontal(|mut strip| {
-                                            strip
-                                                .cell(|ui| {
-                                                    color_background(ui, egui::Color32::from_rgb(255, 255, 0));
-                                                });
-                                            strip
-                                                .cell(|ui| {
-                                                    color_background(ui, egui::Color32::from_rgb(255, 0, 0));
-                                                });
-                                        });
+                                    color_background(ui, egui::Color32::from_rgb(0, 0, 255));
                                 });
-                            if dynamic_if_separator {
-                                strip
-                                    .cell(|ui| {
-                                        ui.separator();
-                                    });
-                            } else {
-                                strip.empty();
-                            }
                             strip
                                 .cell(|ui| {
                                     let mut macro_strip_builder = egui_extras::StripBuilder::new(
@@ -160,33 +115,14 @@ impl eframe::App for MyApp {
                                     macro_strip_builder = macro_strip_builder
                                         .size(egui_extras::Size::remainder());
                                     let macro_strip_response = macro_strip_builder
-                                        .horizontal(|mut strip| {
+                                        .vertical(|mut strip| {
                                             strip
                                                 .cell(|ui| {
-                                                    color_background(ui, egui::Color32::from_rgb(0, 0, 255));
+                                                    color_background(ui, egui::Color32::from_rgb(0, 255, 255));
                                                 });
                                             strip
                                                 .cell(|ui| {
-                                                    let mut macro_strip_builder = egui_extras::StripBuilder::new(
-                                                        ui,
-                                                    );
-                                                    macro_strip_builder = macro_strip_builder
-                                                        .size(egui_extras::Size::relative(0.3));
-                                                    macro_strip_builder = macro_strip_builder
-                                                        .size(egui_extras::Size::exact(1.5));
-                                                    macro_strip_builder = macro_strip_builder
-                                                        .size(egui_extras::Size::remainder());
-                                                    let macro_strip_response = macro_strip_builder
-                                                        .vertical(|mut strip| {
-                                                            strip
-                                                                .cell(|ui| {
-                                                                    color_background(ui, egui::Color32::from_rgb(0, 255, 255));
-                                                                });
-                                                            strip
-                                                                .cell(|ui| {
-                                                                    color_background(ui, egui::Color32::from_rgb(255, 0, 255));
-                                                                });
-                                                        });
+                                                    color_background(ui, egui::Color32::from_rgb(255, 0, 255));
                                                 });
                                         });
                                 });
@@ -196,8 +132,6 @@ impl eframe::App for MyApp {
     }
 }
 ```
-
-
 
 In this example, the load_layout! macro takes an XML string that defines the structure and style of the UI. Dynamic values and conditions can be injected directly into the XML, allowing for a flexible and dynamic UI creation process.
 Getting Started
