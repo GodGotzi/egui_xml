@@ -29,8 +29,8 @@ extern crate proc_macro;
 
 use std::{cell::RefCell, rc::Rc};
 
+use egui_xml_parser::{Node, XMLForm};
 use layout::strip::expand_strip;
-use parser::{Node, XMLForm};
 use proc_macro::TokenStream;
 
 use quote::{quote, TokenStreamExt};
@@ -59,12 +59,12 @@ fn expand_node(
     ctx: &XMLContext,
 ) -> Result<proc_macro2::TokenStream, String> {
     match &*node.borrow() {
-        parser::Node::Panel { children, .. } => expand_nodes(children, ctx),
-        parser::Node::Rust { code, .. } => Ok(code.parse().unwrap()),
-        parser::Node::Border { .. } => Ok(quote! {}),
-        parser::Node::Grid { .. } => Ok(quote! {}),
-        parser::Node::Default { children, .. } => expand_nodes(children, ctx),
-        parser::Node::Strip { .. } => expand_strip(node, ctx),
+        egui_xml_parser::Node::Panel { children, .. } => expand_nodes(children, ctx),
+        egui_xml_parser::Node::Rust { code, .. } => Ok(code.parse().unwrap()),
+        egui_xml_parser::Node::Border { .. } => Ok(quote! {}),
+        egui_xml_parser::Node::Grid { .. } => Ok(quote! {}),
+        egui_xml_parser::Node::Default { children, .. } => expand_nodes(children, ctx),
+        egui_xml_parser::Node::Strip { .. } => expand_strip(node, ctx),
     }
 }
 

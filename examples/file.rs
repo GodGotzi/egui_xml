@@ -1,5 +1,5 @@
 use eframe::egui;
-use macros::load_layout_file;
+use egui_xml::load_layout_file;
 
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {

@@ -5,7 +5,7 @@ use std::{
     str::{from_utf8, FromStr},
 };
 
-use parser::{
+use egui_xml_parser::{
     attribute::{parse_optional_hybrid_attribute, AttributeBool, AttributeF32, HybridAttribute},
     Node,
 };
@@ -18,7 +18,9 @@ use strum_macros::EnumString;
 
 use crate::XMLContext;
 
-use parser::attribute::{parse_hybrid_attribute, parse_optional_rust_attribute, parse_string};
+use egui_xml_parser::attribute::{
+    parse_hybrid_attribute, parse_optional_rust_attribute, parse_string,
+};
 
 #[derive(PartialEq, Eq, EnumString)]
 enum DirectionBlueprint {
