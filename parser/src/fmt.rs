@@ -15,6 +15,7 @@ fn calculate_nested_amount(node: &Node) -> usize {
         let parent = current_node.borrow().get_parent().unwrap();
         current_node = parent;
     }
+    // nvim 
 
     amount
 }
@@ -88,7 +89,7 @@ mod test {
 
     #[test]
     fn test_fmt() {
-        use crate::XMLRoot;
+        use crate::XMLForm;
 
         let xml = r#"
         <Form>
@@ -110,7 +111,7 @@ mod test {
         </Form>
         "#;
 
-        let form = XMLRoot::try_from(xml.to_string()).unwrap();
+        let form = XMLForm::try_from(xml.to_string()).unwrap();
 
         let debug_str = format!("{:?}", form)
             .replace("\n", "")

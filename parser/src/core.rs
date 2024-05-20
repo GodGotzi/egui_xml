@@ -172,17 +172,17 @@ impl Node {
 }
 
 #[derive(Debug)]
-pub struct XMLRoot {
+pub struct XMLForm {
     pub root: Rc<RefCell<Node>>,
 }
 
-impl PartialEq for XMLRoot {
+impl PartialEq for XMLForm {
     fn eq(&self, other: &Self) -> bool {
         self.root == other.root
     }
 }
 
-impl TryFrom<String> for XMLRoot {
+impl TryFrom<String> for XMLForm {
     type Error = String;
 
     fn try_from(xml: String) -> Result<Self, Self::Error> {
@@ -266,7 +266,7 @@ impl TryFrom<String> for XMLRoot {
             buf.clear();
         }
 
-        Ok(XMLRoot { root })
+        Ok(XMLForm { root })
     }
 }
 
@@ -566,7 +566,7 @@ pub mod attribute {
 mod test {
     #[test]
     fn test() {
-        use super::{Node, XMLRoot};
+        use super::{Node, XMLForm};
         use std::cell::RefCell;
         use std::collections::HashMap;
         use std::rc::Rc;
@@ -591,7 +591,7 @@ mod test {
         </Form>
         "#;
 
-        let form = XMLRoot::try_from(xml.to_string()).unwrap();
+        let form = XMLForm::try_from(xml.to_string()).unwrap();
 
         let root = Rc::new(RefCell::new(Node::Default {
             parent: None,
@@ -681,7 +681,7 @@ mod test {
 
         root.borrow_mut().add_node(strip);
 
-        let eq_form = XMLRoot { root };
+        let eq_form = XMLForm { root };
 
         assert_eq!(form, eq_form);
     }

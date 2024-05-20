@@ -3,7 +3,7 @@ extern crate proc_macro;
 use std::{cell::RefCell, rc::Rc};
 
 use layout::strip::expand_strip;
-use parser::{XMLRoot, Node};
+use parser::{Node, XMLForm};
 use proc_macro::TokenStream;
 
 use quote::{quote, TokenStreamExt};
@@ -45,7 +45,7 @@ fn expand_node(
 pub fn load_layout(input: TokenStream) -> TokenStream {
     let xml = input.to_string();
 
-    let form: XMLRoot = match xml.try_into() {
+    let form: XMLForm = match xml.try_into() {
         Ok(form) => form,
         Err(_) => panic!("Failed to load XML"),
     };

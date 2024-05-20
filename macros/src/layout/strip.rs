@@ -21,7 +21,7 @@ use crate::XMLContext;
 use parser::attribute::{parse_hybrid_attribute, parse_optional_rust_attribute, parse_string};
 
 #[derive(PartialEq, Eq, EnumString)]
-enum StripDirection {
+enum DirectionBlueprint {
     #[strum(
         serialize = "BottomUp",
         serialize = "bottomup",
@@ -57,7 +57,7 @@ enum StripDirection {
 }
 
 struct StripBlueprint {
-    direction: StripDirection,
+    direction: DirectionBlueprint,
 
     // Rust Token Stream
     gap: Option<HybridAttribute<AttributeF32>>,
@@ -69,7 +69,7 @@ impl TryFrom<&HashMap<String, Vec<u8>>> for StripBlueprint {
     type Error = String;
 
     fn try_from(attributes: &HashMap<String, Vec<u8>>) -> Result<Self, Self::Error> {
-        let direction = StripDirection::from_str(&parse_string(attributes, "direction")?)
+        let direction = DirectionBlueprint::from_str(&parse_string(attributes, "direction")?)
             .map_err(|err| format!("StripInfo couldn't be parsed! {:?}", err))?;
 
         let gap = parse_optional_hybrid_attribute::<AttributeF32>(attributes, "gap")?;
@@ -247,8 +247,8 @@ pub fn expand_strip(
         let mut macro_strip_builder = egui_extras::StripBuilder::new(#ui_var);
     };
 
-    let iter: Vec<&Rc<RefCell<Node>>> = if info.direction == StripDirection::BottomUp
-        || info.direction == StripDirection::RightToLeft
+    let iter: Vec<&Rc<RefCell<Node>>> = if info.direction == DirectionBlueprint::BottomUp
+        || info.direction == DirectionBlueprint::RightToLeft
     {
         children.iter().rev().collect()
     } else {
@@ -282,10 +282,10 @@ pub fn expand_strip(
     }
 
     let direction_ident = match info.direction {
-        StripDirection::BottomUp => proc_macro2::Ident::new("vertical", Span::call_site()),
-        StripDirection::LeftToRight => proc_macro2::Ident::new("horizontal", Span::call_site()),
-        StripDirection::RightToLeft => proc_macro2::Ident::new("horizontal", Span::call_site()),
-        StripDirection::TopDown => proc_macro2::Ident::new("vertical", Span::call_site()),
+        DirectionBlueprint::BottomUp => proc_macro2::Ident::new("vertical", Span::call_site()),
+        DirectionBlueprint::LeftToRight => proc_macro2::Ident::new("horizontal", Span::call_site()),
+        DirectionBlueprint::RightToLeft => proc_macro2::Ident::new("horizontal", Span::call_site()),
+        DirectionBlueprint::TopDown => proc_macro2::Ident::new("vertical", Span::call_site()),
     };
 
     quote_into!(expanded +=
