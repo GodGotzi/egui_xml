@@ -133,7 +133,7 @@ impl eframe::App for MyApp {
 }
 ```
 
-In this example, the load_layout! macro takes an XML string that defines the structure and style of the UI. Dynamic values and conditions can be injected directly into the XML, allowing for a flexible and dynamic UI creation process.
+In this example, the load_layout! macro takes an XML string that creates the StripBuilder code for the UI. Dynamic values and conditions can be injected directly into the XML, allowing for a flexible and dynamic UI creation process.
 Getting Started
 
 To get started with egui_xml, add the crate to your Cargo.toml:
