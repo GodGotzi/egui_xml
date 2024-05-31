@@ -2,6 +2,8 @@
 name = "egui_xml_parser"
 version = "0.1.0"
 edition = "2021"
+description = "A parser for crate egui_xml"
+license = "MIT"
 
 [dependencies]
 quick-xml = { version = "0.31.0", features = ["serialize"] }
