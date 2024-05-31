@@ -141,7 +141,7 @@ To get started with egui_xml, add the crate to your Cargo.toml:
 ```toml
 [dependencies]
 egui_xml = "0.1"
-eframe = "0.13" # or the latest version
+egui = "0.27"
 ```
 
 Then, you can start defining your UI layouts in XML and loading them using the load_layout! macro within your eframe application.
