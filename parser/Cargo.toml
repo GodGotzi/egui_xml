@@ -1,16 +1,12 @@
 [package]
 name = "egui_xml_parser"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "A parser for crate egui_xml"
 license = "MIT"
 github = "https://github.com/GodGotzi/egui_xml/tree/main/parser"
 
 [dependencies]
-quick-xml = { version = "0.31.0", features = ["serialize"] }
-serde = { version = ">=1.0.139" }
-serde_derive = { version = "1.0.139" }
-serde-value = "0.7"
-egui = "0.27.2"
+quick-xml = "0.31.0"
 proc-macro2 = "1.0"
 quote = "1.0"
