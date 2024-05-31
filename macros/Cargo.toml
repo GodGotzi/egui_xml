@@ -2,6 +2,9 @@
 name = "egui_xml_macros"
 version = "0.1.0"
 edition = "2021"
+description = "macros for egui_xml"
+license = "MIT"
+github = "https://github.com/GodGotzi/egui_xml/tree/main/macros"
 
 [lib]
 proc-macro = true
