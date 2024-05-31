@@ -1,13 +1,13 @@
 [package]
 name = "egui_xml"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "XML macro for egui"
 license = "MIT"
 github = "https://github.com/GodGotzi/egui_xml.git"
 
 [dependencies]
-egui_xml_macros = { version = "0.1.1", path = "macros" }
+egui_xml_macros = { version = "0.1.2", path = "macros" }
 egui_extras = "0.27"
 
 [dev-dependencies]
