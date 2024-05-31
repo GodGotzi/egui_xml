@@ -2,9 +2,11 @@
 name = "egui_xml"
 version = "0.1.0"
 edition = "2021"
+description = "XML macro for egui"
+license = "MIT"
+github = "https://github.com/GodGotzi/egui_xml.git"
 
 [dependencies]
-egui_xml_parser = { version = "*", path = "parser" }
 egui_xml_macros = { version = "*", path = "macros" }
 egui_extras = "0.27"
 
