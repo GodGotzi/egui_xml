@@ -14,8 +14,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: install rustfmt
-      run: cargo install rustfmt
     - name: fmt check
       run: cargo fmt --check
     - name: Build example simple
