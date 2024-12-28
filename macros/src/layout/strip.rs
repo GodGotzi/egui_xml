@@ -12,8 +12,6 @@ use egui_xml_parser::{
 use proc_macro2::Span;
 use quote::{quote, TokenStreamExt};
 
-use quote_into::quote_into;
-
 use strum_macros::EnumString;
 
 use crate::XMLContext;
@@ -290,61 +288,61 @@ pub fn expand_strip(
         DirectionBlueprint::TopDown => proc_macro2::Ident::new("vertical", Span::call_site()),
     };
 
-    quote_into!(expanded +=
-        let macro_strip_response = macro_strip_builder.#direction_ident (|mut strip| {
-            #{
-                for (index, child) in iter.iter().enumerate() {
-                    let borrowed_child = child.borrow();
+    let mut strip_inner = quote! {};
 
-                    let children = match borrowed_child.get_children() {
-                        Some(children) => children,
-                        None => return Err("No Rust allowed here!".to_string()),
-                    };
+    for (index, child) in iter.iter().enumerate() {
+        let borrowed_child = child.borrow();
 
-                    if children.is_empty() {
-                        quote_into!(expanded += strip.empty();)
-                    } else {
-                        quote_into!(expanded += strip.cell(|ui| {
-                            #{
-                                expanded.append_all(crate::expand_node(child, &ctx)?);
-                            }
-                        });)
-                    }
+        let children = match borrowed_child.get_children() {
+            Some(children) => children,
+            None => return Err("No Rust allowed here!".to_string()),
+        };
 
-                    if iter.len() - 1 != index {
-                        if info.gap.is_some() {
-                            match &info.separator {
-                                HybridAttribute::Literal(value) => {
-                                    if value.0 {
-                                        quote_into!(expanded +=
-                                            strip.cell(|ui| {
-                                                ui.separator();
-                                            });
-                                        )
-                                    } else {
-                                        quote_into!(expanded +=
-                                            strip.empty();
-                                        )
-                                    }
-                                }
-                                HybridAttribute::DynamicRust(stream) => {
-                                    quote_into!(expanded +=
-                                        if #stream {
-                                            strip.cell(|ui| {
-                                                ui.separator();
-                                            });
-                                        } else {
-                                            strip.empty();
-                                        }
-                                    )
-                                }
-                            }
+        if children.is_empty() {
+            strip_inner.append_all(quote!(strip.empty();));
+        } else {
+            let cell_inner = crate::expand_node(child, &ctx)?;
+
+            strip_inner.append_all(quote! {
+                strip.cell(|ui| {
+                    #cell_inner
+                });
+            });
+        }
+
+        if iter.len() - 1 != index {
+            if info.gap.is_some() {
+                match &info.separator {
+                    HybridAttribute::Literal(value) => {
+                        if value.0 {
+                            strip_inner.append_all(quote!(strip.cell(|ui| { ui.separator(); });));
+                        } else {
+                            strip_inner.append_all(quote!(strip.empty();));
                         }
+                    }
+                    HybridAttribute::DynamicRust(stream) => {
+                        strip_inner.append_all(quote! {
+                            if #stream {
+                                strip.cell(|ui| {
+                                    ui.separator();
+                                });
+                            } else {
+                                strip.empty();
+                            }
+                        });
                     }
                 }
             }
+        }
+    }
+
+    let strip_stream = quote!(
+        let macro_strip_response = macro_strip_builder.#direction_ident (|mut strip| {
+            #strip_inner
         });
     );
+
+    expanded.append_all(strip_stream);
 
     Ok(expanded)
 }
