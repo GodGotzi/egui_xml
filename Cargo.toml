@@ -4,15 +4,15 @@ version = "0.1.4"
 edition = "2021"
 description = "XML macro for egui"
 license = "MIT"
-github = "https://github.com/GodGotzi/egui_xml.git"
+# github = "https://github.com/GodGotzi/egui_xml.git"
 
 [dependencies]
 egui_xml_macros = { version = "0.1.2", path = "macros" }
-egui_extras = "0.30"
+egui_extras = "0.31.1"
 
 [dev-dependencies]
-eframe = "0.30"
-egui = "0.30"
+eframe = "0.31.1"
+egui = "0.31.1"
 
 [[example]]
 name = "simple"
